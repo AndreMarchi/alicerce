@@ -32,10 +32,20 @@ Reformatar dado histórico depois é retrabalho caro (você já viveu isso com o
   exigindo `motivo_override`.
 - Tabela de auditoria: quantos campos por ticker estão em override manual
   (sinal de fonte automática falha para aquele perfil).
+- Detecção de descontinuidade na série histórica de preço (ex: razão entre
+  máxima e mínima de 52 semanas acima de um limiar configurável) — sinal de
+  evento societário (grupamento/desdobramento) não ajustado corretamente na
+  fonte antes do dado chegar ao pipeline. Caso real que motiva este item:
+  RVEE3 reportando variação de 52 semanas de R$0,68 a R$31,00.
 
 **Critério de saída da fase:** os 5 tickers-piloto (TAEE3, GEPA4, WIZC3,
 ITSA4, CPLE3) têm todos os campos fundamentais carregados com proveniência
-completa, sem nenhum campo "mudo" (sem fonte registrada).
+completa, sem nenhum campo "mudo" (sem fonte registrada). Adicionalmente,
+nenhum campo de preço com descontinuidade de série detectada (razão
+máxima/mínima de 52 semanas acima do limiar configurável) segue adiante na
+cascata de fontes sem `confianca="baixa"` e `motivo_override` preenchido —
+a detecção força esse estado antes de o dado ser consumido por qualquer
+cálculo posterior.
 
 ---
 
@@ -88,10 +98,28 @@ CPLE3/WIZC3 mais cedo.
 - Dashboard/relatório simples: lista de tickers com maior divergência, pra
   revisão manual priorizada (você não vai revisar 327 tickers manualmente,
   mas os top 10 divergentes sim).
+- Decisão de design registrada (não implementada nesta fase — só
+  documentada, mesmo padrão de "casos pendentes resolvidos... decisão
+  explícita, documentada" da Fase 1): liquidez de mercado (volume médio
+  diário, dias negociados no período, free float) entra como novo campo em
+  `PerfilSetor` ou como nova `TagPerfilEconomico` (ex: `LIQUIDEZ_BAIXA`) — e
+  como isso interage com as tags já existentes (`DDM_ONLY`, `CONCESSAO`,
+  `ESTATAL_CONTROLADA`, `SOTP_OBRIGATORIO`, `ALAVANCAGEM_USD`): é uma
+  dimensão ortogonal que se combina livremente com qualquer uma delas, ou
+  existem combinações que não fazem sentido na prática? Achado real que
+  motiva este item: múltiplos "descontados" (P/VP baixo, P/L baixo) de
+  microcaps ilíquidas (SOND3, BMKS3, HBTS5, AHEB3, RVEE3) ficam
+  indistinguíveis de desconto de valor genuíno sem essa dimensão — o
+  sanity check desta fase, sozinho, não resolve isso, porque o preço de
+  mercado usado como referência é o próprio preço distorcido pela
+  ausência de formação real.
 
 **Critério de saída da fase:** rodando nos 62 tickers, o sistema aponta
 divergências grandes — e ao investigar 3-5 delas manualmente, a causa é
 identificável (dado ruim, perfil errado, ou divergência legítima de premissa).
+A decisão de design sobre liquidez (campo vs. tag, ver Entregáveis) também
+precisa estar registrada e documentada antes de fechar a fase, mesmo que a
+implementação em si fique para uma fase posterior.
 
 ---
 
@@ -128,9 +156,25 @@ problema.
 - Cálculo de faixa (não ponto único): mínimo, máximo, mediana entre os
   métodos ponderados.
 - Registro de qual método "puxou" o resultado final, pra rastreabilidade.
+- Segregação por tese de investimento: tickers cujas `TagPerfilEconomico`
+  representam teses de investimento incompatíveis entre si (ex:
+  `SOTP_OBRIGATORIO` — desconto de holding/NAV — vs. um futuro perfil de
+  turnaround operacional vs. um futuro perfil de qualidade a múltiplo
+  premium) não competem no mesmo ranking/score comparável. O resultado do
+  consenso é segregado em rankings separados por tese, ou, no mínimo,
+  anotado explicitamente com a tese de origem em cada entrada — qual dos
+  dois mecanismos usar é decisão desta fase, mas o requisito de nunca
+  misturar teses incompatíveis num único ranking sem sinalização explícita
+  é obrigatório desde já. Achado real que motiva este item: um screening
+  comparativo colocou lado a lado holding com desconto de NAV (BRAP3),
+  turnaround operacional (PFRM3), qualidade a múltiplo premium (RDOR3) e
+  desconto por risco regulatório (CSED3) — todos competindo no mesmo score,
+  sem segregação por tese.
 
 **Critério de saída da fase:** faixa de valor dos 5 tickers-piloto é
-plausível e cada componente do consenso é rastreável até sua fonte.
+plausível e cada componente do consenso é rastreável até sua fonte. Nenhum
+ranking comparável final mistura tickers com `TagPerfilEconomico` de teses
+incompatíveis sem segregação ou anotação explícita da tese de origem.
 
 ---
 
