@@ -49,6 +49,18 @@ class PerfilSetor:
     pct_divida_moeda_estrangeira: Optional[CampoComProveniencia] = None
     cap_crescimento_ciclico: Optional[CampoComProveniencia] = None
 
+    # Métrica PRÓPRIA do ticker (não uma referência de fallback setorial
+    # como os campos acima — por isso sem o sufixo "_referencia"). Volume
+    # financeiro médio diário negociado (R$), sinal de liquidez de
+    # mercado. Decisão de design (ver CONTEXT.md, investigação "liquidez:
+    # campo vs. tag"): fica aqui, não como TagPerfilEconomico, porque é
+    # uma condição de MERCADO que muda com o tempo sem nenhuma mudança na
+    # empresa — precisa do mecanismo de staleness que só
+    # CampoComProveniencia tem (`esta_desatualizado`, reaproveitado, não
+    # duplicado). Opcional: None = liquidez ainda não investigada pra
+    # esse ticker, nunca um número inventado.
+    volume_medio_diario: Optional[CampoComProveniencia] = None
+
     notas: Optional[str] = None
 
     def __post_init__(self) -> None:

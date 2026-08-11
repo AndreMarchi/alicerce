@@ -83,6 +83,7 @@ def _carregar_perfis() -> dict[str, PerfilSetor]:
             fator_conversao_nopat_referencia=_campo_de_dict(dados.get("fator_conversao_nopat_referencia")),
             pct_divida_moeda_estrangeira=_campo_de_dict(dados.get("pct_divida_moeda_estrangeira")),
             cap_crescimento_ciclico=_campo_de_dict(dados.get("cap_crescimento_ciclico")),
+            volume_medio_diario=_campo_de_dict(dados.get("volume_medio_diario")),
             notas=dados.get("notas"),
         )
     return perfis

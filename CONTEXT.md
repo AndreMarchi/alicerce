@@ -571,6 +571,69 @@ como validado contra os casos disponíveis até esta data** (2026-08-11).
 Valor não alterado nesta sessão — ver relatório de calibração completo
 na conversa; mudar o valor é tarefa separada, com aprovação explícita.
 
+## Liquidez de mercado — campo vs. tag (decidido e implementado)
+
+### Investigação anterior (decisão, resumo — nunca tinha sido registrado aqui)
+
+Pergunta: liquidez (o motivador foi um screening com microcaps ilíquidas —
+SOND3, BMKS3, HBTS5, AHEB3, RVEE3 — cujos múltiplos "descontados" ficavam
+indistinguíveis de desconto de valor genuíno) deveria entrar como novo
+campo em `PerfilSetor` ou como `TagPerfilEconomico` nova
+(`LIQUIDEZ_BAIXA`)?
+
+**Decisão: campo em `PerfilSetor`, não tag.** Motivo, encontrado
+investigando o código real (não preferência estética):
+
+- 4 das 5 tags existentes (`CONCESSAO`, `ESTATAL_CONTROLADA`,
+  `SOTP_OBRIGATORIO`, `DDM_ONLY`) são características **estruturais**
+  (só mudam com evento corporativo raro). A única exceção
+  (`ALAVANCAGEM_USD`) já não é uma tag autônoma — é a sinalização de um
+  limiar sobre um campo numérico que já mora em `PerfilSetor`
+  (`pct_divida_moeda_estrangeira`). Esse é o precedente real: número
+  primeiro, tag derivada depois — nunca o inverso.
+- `AtribuicaoTag` (`tags.py`) não tem `data_atualizacao` nem `confianca`
+  — uma tag atribuída fica válida pra sempre até alguém editar o JSON à
+  mão. Liquidez muda com o tempo sem nenhuma mudança na empresa — isso
+  exigiria inventar um segundo mecanismo de staleness só pra tags, só
+  pra esse caso.
+- `CampoComProveniencia` (Fase 0) já tem esse mecanismo pronto:
+  `esta_desatualizado` (`schema.py:43-46`). Reaproveitável direto, sem
+  duplicar nada.
+- Precedente interno pareado: `eh_ciclico` (bool) + `cap_crescimento_ciclico`
+  (`CampoComProveniencia`) já convivem em `PerfilSetor` — exatamente o
+  padrão "classificação derivada + métrica numérica" que liquidez
+  precisaria, se um dia ganhar uma tag derivada.
+
+### Implementado nesta sessão
+
+`PerfilSetor.volume_medio_diario: Optional[CampoComProveniencia] = None`
+(`perfil_setor.py`) — volume financeiro médio diário negociado (R$),
+sinal de liquidez. **Sem sufixo `_referencia`** (diferente dos campos
+vizinhos): é a métrica PRÓPRIA do ticker, não um fallback setorial —
+distinção que a investigação anterior encontrou e que motivou o nome.
+Reaproveita `esta_desatualizado` de `CampoComProveniencia`, sem
+mecanismo de staleness próprio. `motor.py::_carregar_perfis()` também
+ganhou o mapeamento do JSON pra esse campo (extensão pequena e mecânica
+além dos itens pedidos — sem isso o campo nunca seria carregável pela
+fonte de dados real, mesmo sem popular nenhum ticker ainda).
+
+**Fora do escopo desta sessão, de propósito** (não esquecer nem
+duplicar numa sessão futura):
+- `TagPerfilEconomico.LIQUIDEZ_BAIXA` **não foi criada** — só faz
+  sentido quando `RegraPerfil` existir de fato (ainda é só pseudocódigo
+  em `docs/ROADMAP.md:61-71`, Fase 1/2) pra decidir o limiar de
+  derivação, mesmo padrão de `ALAVANCAGEM_USD`.
+- Nenhum dos 6 tickers-piloto foi populado com esse dado —
+  `volume_medio_diario` continua `None` pra todos no
+  `perfis_ticker.json` atual.
+
+Testes: `test_perfil_setor.py` (3 novos — proveniência completa, campo
+opcional sem quebrar o perfil, `esta_desatualizado` reaproveitado) e
+`test_perfil_setor_provenance.py` (constante renomeada de
+`_CAMPOS_REFERENCIA_ESPERADOS` pra `_CAMPOS_NUMERICOS_ESPERADOS` —
+já não é só campos com sufixo `_referencia` — com `volume_medio_diario`
+incluído). **57 testes passando** (54 anteriores + 3 novos).
+
 ## Convenções ao pedir mudanças pro Claude Code
 
 - Caminho de arquivo exato + número de linha quando for correção pontual.
