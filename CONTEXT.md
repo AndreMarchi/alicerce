@@ -471,6 +471,106 @@ commit `933218b` como rename (`R`) — histórico preservado — e os
 arquivos novos da Fase 1 como untracked no novo caminho (`??`), exatamente
 como esperado, já que nunca tiveram commit.
 
+## Detecção de descontinuidade de preço (extensão da Fase 0, concluída)
+
+Implementa o entregável adicionado ao `docs/ROADMAP.md`, Fase 0, nesta
+sessão: detectar quando a razão entre máxima e mínima de 52 semanas é alta
+demais pra ser volatilidade orgânica — sinal de evento societário
+(grupamento/desdobramento) não ajustado na série histórica de preço.
+Caso real motivador: RVEE3 reportando R$0,68 a R$31,00 em 52 semanas
+(razão ~45,59x).
+
+### Achado antes de implementar (investigação, ver item 1 do pedido)
+
+O pedido descrevia "call sites" que consomem preço histórico — endpoint
+de valuation, cálculo de beta/volatilidade/múltiplos, hook de paridade
+DCF entre `/valuation` e `/cenarios`. **Nenhum desses existe no Alicerce
+hoje.** `grep` completo em `backend/src` e `backend/api` por
+preço/histórico/beta/volatilidade/múltiplo/endpoint não encontrou
+nada além de `beta_referencia` (um campo de fallback do `PerfilSetor`,
+não uma série de preço). `pipeline/`, `capm/`, `sanity/`, `qualitativo/`,
+`backtesting/` continuam pacotes vazios (só `__init__.py` de 0 bytes,
+confirmado). Esses call sites e esse hook existem no `valuation-tracker`
+antigo, não aqui — o pedido parece ter carregado essa premissa de lá.
+**Consequência**: os itens 3 e 4 do pedido original (integrar no ponto de
+ingestão, confirmar propagação em "ambos os call sites") não têm alvo
+real pra integrar ainda. Implementado como função pura + função de
+aplicação, prontas pro estágio de ingestão futuro (Fase 1+ do
+`ROADMAP.md`, pasta `pipeline/`) chamar — sem inventar um pipeline que
+não foi pedido nem aprovado nesta sessão.
+
+### O que foi implementado
+
+`backend/src/alicerce/proveniencia/descontinuidade_preco.py` (módulo
+novo — `proveniencia/schema.py` da Fase 0 **não foi alterado**):
+
+- `RAZAO_MAX_MIN_52W_SUSPEITA = 10.0` — limiar configurável, mesmo padrão
+  de constante de `CAPM_CEILING`/`WACC_FLOOR` do `valuation-tracker`.
+  **Racional (revisar antes do commit — não calibrado estatisticamente
+  contra amostra real da B3)**: grupamentos/desdobramentos na B3 costumam
+  ser 1:5, 1:10, 1:20 ou mais agressivos (comum em micro/nanocaps pra
+  evitar desenquadramento de preço mínimo) — isso já produz razão ≥5x
+  isolado, somado a movimento de preço real do período. Uma ação sem
+  evento societário raramente ultrapassa ~5-8x de razão máx/mín em 52
+  semanas mesmo em cenário extremo. RVEE3 (~45,6x) fica muito acima da
+  margem de 10x, não é caso limítrofe.
+- `razao_max_min_52_semanas(maxima, minima)` — cálculo puro, levanta
+  `ValueError` se `minima <= 0`.
+- `eh_descontinuidade_suspeita(maxima, minima, limiar=...)` — `True`
+  quando a razão ULTRAPASSA o limiar (igual ao limiar não é suspeito).
+- `aplicar_deteccao_descontinuidade(campo, maxima, minima, limiar=...)` —
+  recebe um `CampoComProveniencia` qualquer (não assume nome de campo,
+  porque nenhum campo de preço existe em nenhum schema ainda) e, se
+  suspeito, retorna uma NOVA instância com `confianca="baixa"` e
+  `motivo_override` preenchido automaticamente com a razão calculada e o
+  tipo de anomalia — `valor`/`fonte` originais preservados (nunca
+  descartado em silêncio, princípio "nenhum campo mudo"). Campo não
+  suspeito volta inalterado (mesma instância).
+
+### Testes (11 novos, sem mocks, `CampoComProveniencia` sintético real)
+
+`backend/tests/unit/test_descontinuidade_preco.py`: caso limpo (razão
+1.5x, campo inalterado), caso RVEE3-like (razão ~45,6x, `confianca`
+forçada e `motivo_override` preenchido), caso de borda exatamente no
+limiar (10.0x exato — NÃO suspeito) e um centavo acima (suspeito),
+`minima<=0` levanta erro, campo já `fonte="manual"` tem seu
+`motivo_override` anterior sobrescrito sem conflito de validação, limiar
+customizado é respeitado. **54 testes passando no total** (43 anteriores
++ 11 novos), rodado a partir de `backend/` num venv limpo — nenhum hook
+de paridade DCF existe no Alicerce pra rodar (achado acima).
+
+### Call sites cobertos
+
+Nenhum — ver "Achado antes de implementar" acima. Quando o estágio de
+ingestão de preço histórico for implementado (Fase 1+), ele deve chamar
+`aplicar_deteccao_descontinuidade` sobre o campo de preço correspondente;
+até lá, este módulo fica testado e pronto, sem uso real.
+
+### Calibração do limiar (dados reais, sessão separada)
+
+`RAZAO_MAX_MIN_52W_SUSPEITA=10.0` foi testado contra **14 tickers** com
+dado real do Fundamentus (primeira fonte da cascata): os 6 tickers-piloto
+como grupo de controle (sem evento societário, razão máxima observada
+2,18x — BEEF3) e 8 tickers com evento societário confirmado via
+notícia/Fato Relevante antes de entrar na amostra, dos quais **2 são
+positivos reais** (RVEE3 ~44,12x, TOKY3 ~17,12x) e os outros 6
+(SBSP3, DIRR3, AZUL3, VIVR3, ESPA3, AVLL3) não dispararam — achado
+relevante: o Fundamentus já ajusta a série de 52 semanas pra maioria dos
+eventos societários, então o detector funciona como rede de segurança só
+pros casos em que esse ajuste falha (aparentemente concentrados em
+microcaps muito ilíquidas com eventos incomuns/múltiplos, o mesmo perfil
+de RVEE3 e TOKY3), não como detector geral de "todo evento societário".
+
+**Sem sobreposição observada** entre os dois grupos (controle: ≤2,18x;
+positivos reais: ≥17,12x) — 10.0 fica bem no meio, com margem dos dois
+lados. **Mas a amostra de positivos é pequena (n=2)** — não há caso real
+na amostra entre 3x e 17x que force uma escolha fina do valor exato;
+8x, 12x ou 15x separariam os mesmos 2 casos dos 6 controles igualmente
+bem. **10.0 não deve ser tratado como valor estatisticamente ótimo, só
+como validado contra os casos disponíveis até esta data** (2026-08-11).
+Valor não alterado nesta sessão — ver relatório de calibração completo
+na conversa; mudar o valor é tarefa separada, com aprovação explícita.
+
 ## Convenções ao pedir mudanças pro Claude Code
 
 - Caminho de arquivo exato + número de linha quando for correção pontual.
