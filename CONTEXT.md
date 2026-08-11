@@ -14,7 +14,7 @@ estatal, holding, seguradora...). Ver `docs/ROADMAP.md` pra fases completas.
 ## Princípios de arquitetura (não negociáveis)
 
 1. **Nenhum campo sem proveniência.** Todo valor carregado tem fonte,
-   confiança e data. Ver `src/alicerce/proveniencia/schema.py`.
+   confiança e data. Ver `backend/src/alicerce/proveniencia/schema.py`.
 2. **Perfis são tags compostas, não categorias exclusivas.** Uma empresa
    pode ser `["concessao_com_prazo", "estatal_controlada"]` ao mesmo tempo.
    Cada tag contribui uma regra; regras se combinam, não competem.
@@ -37,6 +37,9 @@ núcleo determinístico (Fases 0-3) estar calibrado nos 6 tickers-piloto:
 
 ## Estratégia de testes
 
+Suíte completa mora em `backend/tests/` (ver "Estrutura de monorepo" pra
+como rodar):
+
 - `tests/unit` — regra por regra, isolada (`ContextoValuation` de entrada
   → saída esperada).
 - `tests/regression` — casos que já quebraram uma vez (ex: WACC capado
@@ -54,13 +57,13 @@ Fase 4 — Fases 0-3 são backend puro, sem UI.
 
 ## Fase 1 — Motor de Perfis (concluída)
 
-Status: implementada e testada. `src/alicerce/perfis/` tem
+Status: implementada e testada. `backend/src/alicerce/perfis/` tem
 `perfil_setor.py` (`PerfilSetor`), `tags.py` (`TagPerfilEconomico`,
 `AtribuicaoTag`), `motor.py` (`obter_perfil`/`obter_tags`/
 `obter_atribuicoes_tags`, `TickerSemPerfilError`) e
 `dados/perfis_ticker.json` com os 6 tickers-piloto. 43 testes passando
-(`tests/unit/test_perfil_setor.py`, `test_tags.py`, `test_motor.py`,
-`tests/provenance_contract/test_perfil_setor_provenance.py`, + os 7 da
+(`backend/tests/unit/test_perfil_setor.py`, `test_tags.py`, `test_motor.py`,
+`backend/tests/provenance_contract/test_perfil_setor_provenance.py`, + os 7 da
 Fase 0). Nenhuma lógica de valuation ou `RegraPerfil` implementada —
 fica pra Fase 2, como planejado.
 
@@ -290,15 +293,15 @@ especial" (`frozenset()` válido).
 
 ### Testes (implementados, todos passando)
 
-- `tests/unit/test_perfil_setor.py` — construção válida/inválida de
+- `backend/tests/unit/test_perfil_setor.py` — construção válida/inválida de
   `PerfilSetor`.
-- `tests/unit/test_tags.py` — composição de tags (múltiplas tags por
+- `backend/tests/unit/test_tags.py` — composição de tags (múltiplas tags por
   ticker), imutabilidade de `AtribuicaoTag`, justificativa obrigatória.
-- `tests/unit/test_motor.py` — `obter_perfil`/`obter_tags` dos 6 tickers
+- `backend/tests/unit/test_motor.py` — `obter_perfil`/`obter_tags` dos 6 tickers
   batendo com a tabela acima; ticker desconhecido levanta
   `TickerSemPerfilError`; herança de setor (Energia Elétrica) e override
   por ticker confirmados por teste, não só por inspeção do JSON.
-- `tests/provenance_contract/test_perfil_setor_provenance.py` — usa
+- `backend/tests/provenance_contract/test_perfil_setor_provenance.py` — usa
   `typing.get_type_hints(PerfilSetor)` (contrato estrutural, resiste a
   `from __future__ import annotations`) pra garantir que nenhum campo
   resolve pra `float`/`int` cru, e que os 6 campos de referência são de
@@ -319,6 +322,154 @@ especial" (`frozenset()` válido).
    explicitamente nos docstrings de `tags.py`: este módulo responde "o
    quê" (quais tags um ticker tem), nunca "quando aplicar" — isso é
    `RegraPerfil`, Fase 2.
+
+## Estrutura de monorepo (concluída)
+
+Status: aprovada e executada. `backend/` (todo o código Python: `src/`,
+`tests/`, `api/`, `scripts/`, `pyproject.toml`) e `frontend/`
+(`.gitkeep` + `README.md` curto, sem stack decidida) criados com `git
+mv` pros arquivos já rastreados no commit `933218b` e `mv` normal pros
+arquivos da Fase 1 (sem histórico prévio pra preservar de qualquer
+forma). Nenhum conteúdo de `pyproject.toml` mudou (caminhos já eram
+relativos). 43 testes rodados a partir de `backend/` num venv limpo
+(Python 3.11.6) — todos passando, nenhuma mudança de lógica. `git status`
+confirma os moves de arquivo rastreado como rename (`R`), não
+delete+add.
+
+### Investigação do estado atual (lendo o repositório real)
+
+- **Achado que muda a execução do plano**: apesar do enunciado desta
+  tarefa dizer "Fase 0 e Fase 1 ... commitadas", `git log` mostra só 1
+  commit (`933218b primeiro commit`, o esqueleto inicial: `pyproject.toml`,
+  os `__init__.py` vazios de cada subpacote, `proveniencia/schema.py`,
+  `CONTEXT.md`/`README.md`/`docs/ROADMAP.md` na versão inicial,
+  `api/__init__.py`). **Tudo que veio depois — o fix de
+  `[tool.setuptools.packages.find]`, `.gitignore`, os testes de
+  proveniência, e o motor de perfis inteiro da Fase 1
+  (`perfis/motor.py`, `perfis/tags.py`, `perfis/perfil_setor.py`,
+  `perfis/dados/`, mais 4 arquivos de teste) — está no working tree,
+  nunca commitado** (`git status` confirma: só modificações/arquivos
+  novos, nada staged). Isso não muda O QUÊ mover, mas muda COMO: `git mv`
+  só existe pra arquivo já rastreado — em arquivo novo/não commitado ele
+  falha (`fatal: not under version control`). Não vou commitar nada por
+  conta própria (não foi pedido); o plano abaixo usa `git mv` pros
+  arquivos que já estão no commit `933218b`, e `mv` normal pros arquivos
+  da Fase 1 que ainda não têm histórico nenhum pra preservar — o
+  resultado final no working tree é idêntico de qualquer forma (é você
+  quem decide quando commitar, e em que agrupamento).
+- **Imports confirmados absolutos** (`grep -rn "^from alicerce\|^import
+  alicerce" src tests`): todo import é `from alicerce.<modulo> import
+  ...` — nenhum `sys.path` manual, nenhum import relativo cross-pasta.
+  Isso depende só do pacote `alicerce` estar instalado (`pip install
+  -e .`), não de onde o arquivo físico mora — mover a árvore inteira
+  (`src/` + `tests/` + `pyproject.toml`) junto não quebra nenhum import.
+- **`pyproject.toml` só tem caminhos RELATIVOS**: `[tool.setuptools.
+  packages.find] where = ["src"]` e `[tool.pytest.ini_options] testpaths
+  = ["tests"]` são relativos à localização do próprio `pyproject.toml`.
+  Como o `pyproject.toml` vai mover junto com `src/` e `tests/` (os 3 pra
+  dentro de `backend/`), **nenhum valor dentro do arquivo precisa
+  mudar** — só a localização do arquivo em si. Simplifica o passo 3 do
+  pedido original (não há "caminho interno" pra ajustar, de fato).
+- **`.gitignore` já cobre os novos caminhos sem alteração**: os padrões
+  existentes (`__pycache__/`, `*.pyc`, `*.egg-info/`, `.venv/`,
+  `.pytest_cache/`, `.coverage`, `htmlcov/`) não têm `/` no meio nem no
+  início — por semântica do Git, isso já casa em QUALQUER profundidade
+  da árvore (`backend/src/.../__pycache__/` incluso), não só na raiz.
+  Nenhuma mudança necessária aqui.
+- **Nenhum CI/script pra atualizar**: confirmado — sem `.github/workflows`,
+  sem `pytest.ini`, sem `conftest.py`. `scripts/` existe mas está vazio
+  (0 arquivos, não rastreado no Git — diretório vazio não é versionado).
+- **Achado fora do escopo desta tarefa, mas relevante pro plano**: existe
+  um `api/__init__.py` (Python, vazio, já commitado no `933218b`) que a
+  árvore-alvo do pedido não menciona. Pelo princípio declarado ("tudo que
+  hoje é Python vira `backend/`"), a leitura mais direta é mover pra
+  `backend/api/__init__.py` — incluído no plano abaixo como extensão da
+  árvore pedida, não como mudança de escopo (é só aplicar o mesmo
+  princípio a uma pasta que a investigação encontrou e o diagrama do
+  pedido não listou explicitamente).
+- **`.DS_Store` (3 arquivos, não rastreados, raiz/`src/`/`tests/`)**:
+  lixo do Finder do macOS, sem relação com o código. Vou apagá-los (são
+  regenerados automaticamente pelo macOS, nunca deveriam ter sido
+  criados como conteúdo do projeto) e adicionar `.DS_Store` ao
+  `.gitignore` — higiene trivial, feita junto por já estar mexendo nesses
+  arquivos, não uma tarefa nova.
+
+### Plano de migração
+
+Árvore final (ajustada frente ao pedido original: `backend/api/` e
+`backend/scripts/` adicionados, pelo motivo acima):
+
+```
+alicerce/
+  backend/
+    src/alicerce/          # todo o conteúdo atual de src/alicerce/
+    tests/                  # toda a suíte de testes atual
+    api/                    # api/__init__.py (achado na investigação)
+    scripts/                # vazio hoje, mantido pra scripts futuros (Fase 3+, ex: atualização CVM)
+    pyproject.toml           # movido da raiz, SEM alteração de conteúdo
+  frontend/
+    .gitkeep
+    README.md                # 2-3 linhas, sem stack decidida
+  docs/
+    ROADMAP.md
+  CONTEXT.md
+  README.md
+  .gitignore
+```
+
+Comandos planejados (nenhum executado ainda):
+
+```bash
+mkdir -p backend frontend
+git mv pyproject.toml backend/pyproject.toml
+git mv src backend/src
+git mv tests backend/tests
+git mv api backend/api
+mkdir -p backend/scripts   # vazio, não rastreável até ter conteúdo
+mv .gitignore .gitignore   # sem mudança de local; só o conteúdo ganha .DS_Store
+touch frontend/.gitkeep
+# frontend/README.md criado à parte (conteúdo abaixo)
+```
+
+Os arquivos da Fase 1 (não rastreados: `perfis/motor.py`, `perfis/
+tags.py`, `perfis/perfil_setor.py`, `perfis/dados/*.json`, os 4 testes
+novos) viajam automaticamente dentro de `git mv src backend/src` — `git
+mv` num diretório move TODO o conteúdo do diretório, rastreado ou não;
+só o rastreamento em si (o que aparece no `git log` de cada arquivo) que
+difere entre os dois grupos.
+
+### Como rodar (pós-migração)
+
+```bash
+cd backend
+pip install -e ".[dev]"
+pytest
+```
+
+Executar `pytest` a partir da raiz do repo deixa de funcionar como antes
+(não há mais `pyproject.toml`/`pytest.ini` na raiz pra `pytest` descobrir
+`testpaths`) — isso é uma mudança de comportamento real, não um bug;
+documentar no `README.md` principal é parte do item 6.
+
+### `frontend/README.md` (conteúdo proposto)
+
+```markdown
+# Alicerce — Frontend
+
+Reservado para a fase de frontend do Alicerce (ver `../docs/ROADMAP.md`
+— fora de escopo até pelo menos a Fase 4). Nenhuma stack decidida ainda;
+Fases 0-3 são backend puro, sem UI.
+```
+
+### Aprovação e execução
+
+Plano aprovado sem ressalvas (incluindo a extensão pra `backend/api/` e
+`backend/scripts/`, e sem commit prévio — reorganização feita em cima do
+mesmo working tree não commitado). Nada de `RegraPerfil`/Fase 2 tocado
+nesta tarefa. `git status` pós-migração mostra os arquivos herdados do
+commit `933218b` como rename (`R`) — histórico preservado — e os
+arquivos novos da Fase 1 como untracked no novo caminho (`??`), exatamente
+como esperado, já que nunca tiveram commit.
 
 ## Convenções ao pedir mudanças pro Claude Code
 
