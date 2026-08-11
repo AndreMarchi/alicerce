@@ -1,0 +1,177 @@
+{
+  "_aviso": "Dados de perfil setorial + tags de perfil econômico dos 6 tickers-piloto do Alicerce (Fase 1). Fonte única: src/alicerce/perfis/motor.py::obter_perfil()/obter_tags(). Valores numéricos migrados do valuation-tracker (fonte='manual', com motivo_override explicando a origem — ver CONTEXT.md, seção 'Fase 1 — Motor de Perfis') carregam data_atualizacao='2026-07-22', a data real da auditoria setorial (.auditoria_cache/resultados_2026-07-22.json) de onde essas calibrações vêm. '_setores_base' implementa a herança de setor decidida em CONTEXT.md ('Herança de setor') — só existe pra setores com sobreposição real entre os tickers-piloto (hoje, só Energia Elétrica); demais tickers não usam base nenhuma.",
+
+  "_setores_base": {
+    "Energia Elétrica": {
+      "eh_regulado": true,
+      "eh_ciclico": false,
+      "taxonomia_financeira_especial": false,
+      "beta_referencia": {
+        "valor": 0.65,
+        "fonte": "manual",
+        "confianca": "media",
+        "data_atualizacao": "2026-07-22",
+        "motivo_override": "Migrado de valuation-tracker/valuation/perfil_setor.py::PERFIS_SETOR['Energia Elétrica'].beta_referencia — usado só como fallback quando o beta próprio do ticker está ausente, nunca sobrescreve um beta real. Ver CONTEXT.md, Fase 1."
+      },
+      "ev_ebitda_medio_referencia": {
+        "valor": 7.0,
+        "fonte": "manual",
+        "confianca": "media",
+        "data_atualizacao": "2026-07-22",
+        "motivo_override": "Migrado de valuation-tracker/valuation/perfil_setor.py::PERFIS_SETOR['Energia Elétrica'].ev_ebitda_medio (múltiplo EV/EBITDA médio setorial, referência pro sanity check de Kobori). Ver CONTEXT.md, Fase 1."
+      },
+      "fator_conversao_nopat_referencia": {
+        "valor": 0.60,
+        "fonte": "manual",
+        "confianca": "media",
+        "data_atualizacao": "2026-07-22",
+        "motivo_override": "Migrado de valuation-tracker/valuation/perfil_setor.py::PERFIS_SETOR['Energia Elétrica'].fator_conversao_nopat. Ver CONTEXT.md, Fase 1."
+      }
+    }
+  },
+
+  "tickers": {
+    "TAEE3": {
+      "setor": "Energia Elétrica",
+      "subsetor": "Transmissão",
+      "pct_divida_moeda_estrangeira": {
+        "valor": 0.0,
+        "fonte": "manual",
+        "confianca": "alta",
+        "data_atualizacao": "2026-07-22",
+        "motivo_override": "Confirmado em valuation-tracker/valuation/wacc.py durante a validação do spread cambial: TAEE3 tem pct_divida_moeda_estrangeira=0.0 (dado real via CVM, sem exposição cambial na dívida). Ver CONTEXT.md, Fase 1."
+      },
+      "tags": [
+        {
+          "tag": "ddm_only",
+          "justificativa": "Transmissora de energia com RAP (Receita Anual Permitida) contratada e payout historicamente próximo de 100% do lucro regulatório — tag NOVA desta fase, sem precedente no valuation-tracker (não existe módulo de DDM lá). Ver CONTEXT.md, Fase 1."
+        }
+      ],
+      "notas": "Listada como candidata de prioridade não-alta a perfil 'concessao' em valuation-tracker/dados/perfil_dcf.json::_candidatos_auditados_pendentes, mas nunca parametrizada lá. A tag DDM_ONLY aqui é uma decisão independente disso, não uma migração."
+    },
+
+    "CPLE3": {
+      "setor": "Energia Elétrica",
+      "subsetor": "Distribuição e Geração",
+      "tags": [
+        {
+          "tag": "concessao",
+          "justificativa": "Distribuidora/geradora sob concessão regulada (ANEEL) — listada com prioridade ALTA em valuation-tracker/dados/perfil_dcf.json::_candidatos_auditados_pendentes, ainda não parametrizada lá."
+        },
+        {
+          "tag": "estatal_controlada",
+          "justificativa": "Controle estatal via golden share do Governo do Paraná, mantido mesmo após a privatização de 2023 — confirmado em valuation-tracker/valuation/risco.py::EMPRESAS_CONTROLE_ESTATAL, decisão já tomada e reconfirmada explicitamente pelo usuário no projeto anterior (risco político residual)."
+        }
+      ],
+      "notas": "pct_divida_moeda_estrangeira não foi investigado no valuation-tracker para este ticker especificamente — deixado ausente (None) em vez de estimado."
+    },
+
+    "GEPA4": {
+      "setor": "Energia Elétrica",
+      "subsetor": "Geração",
+      "tags": [
+        {
+          "tag": "concessao",
+          "justificativa": "Único ticker já parametrizado como 'concessao' em valuation-tracker/dados/perfil_dcf.json (GEPA4/GEPA3), com CONCESSOES_CONHECIDAS parametrizado em dcf_concessao.py."
+        }
+      ],
+      "notas": "Achado real do valuation-tracker: BPP e DRE consolidados da GEPA4 (CD_CVM 18368) reportados como ZERADOS na CVM desde 2024 (confirmado linha a linha, ITR e DFP, 2023-2025). Qualquer dado numérico de balanço/DRE futuro pra este ticker deve entrar com confianca='baixa' até essa anomalia ser investigada — não é bug do Alicerce nem do valuation-tracker, é o dado reportado pela própria CVM."
+    },
+
+    "ITSA4": {
+      "setor": "Holding",
+      "subsetor": "Participações Diversificadas",
+      "taxonomia_financeira_especial": true,
+      "tags": [
+        {
+          "tag": "sotp_obrigatorio",
+          "justificativa": "Holding pura de participações (Itaú Unibanco, Dexco, Alpargatas, Motiva, Aegea, Copa Energia e mais 1) — maior ativo é participação num banco, então EV/EBITDA ou DCF consolidado não são conceitos limpos (mesma razão pela qual são inválidos pra bancos). Confirmado em valuation-tracker/dados/sotp_config.json::ITSA4, método 'valor_participacao' usado nos 7 segmentos."
+        }
+      ],
+      "notas": "'Holding' é uma classificação atribuída pelo motor de perfis do Alicerce, não uma string de setor canônica confirmada em nenhum provedor investigado — o valuation-tracker nunca teve entrada de setor específica pra ITSA4 em PERFIS_SETOR (só o override de segmentos em sotp_config.json). Sem beta/EV-EBITDA/fator NOPAT de referência confirmados para holdings puras — deixados ausentes (None) em vez de estimados."
+    },
+
+    "BEEF3": {
+      "setor": "Alimentos",
+      "eh_ciclico": true,
+      "beta_referencia": {
+        "valor": 0.90,
+        "fonte": "manual",
+        "confianca": "media",
+        "data_atualizacao": "2026-07-22",
+        "motivo_override": "Migrado de valuation-tracker/valuation/perfil_setor.py::PERFIS_SETOR['Alimentos'].beta_referencia (fallback setorial) — não confundir com o beta PRÓPRIO observado da BEEF3 no Yahoo (0.26, 5 anos), investigado à parte no valuation-tracker e confirmado como dado real da fonte, não bug. Ver CONTEXT.md, Fase 1."
+      },
+      "ev_ebitda_medio_referencia": {
+        "valor": 8.0,
+        "fonte": "manual",
+        "confianca": "media",
+        "data_atualizacao": "2026-07-22",
+        "motivo_override": "Migrado de valuation-tracker/valuation/perfil_setor.py::PERFIS_SETOR['Alimentos'].ev_ebitda_medio. Ver CONTEXT.md, Fase 1."
+      },
+      "psr_medio_referencia": {
+        "valor": 0.6,
+        "fonte": "manual",
+        "confianca": "media",
+        "data_atualizacao": "2026-07-22",
+        "motivo_override": "Migrado de valuation-tracker/valuation/perfil_setor.py::PERFIS_SETOR['Alimentos'].psr_medio. Ver CONTEXT.md, Fase 1."
+      },
+      "fator_conversao_nopat_referencia": {
+        "valor": 0.50,
+        "fonte": "manual",
+        "confianca": "media",
+        "data_atualizacao": "2026-07-22",
+        "motivo_override": "Migrado de valuation-tracker/valuation/perfil_setor.py::PERFIS_SETOR['Alimentos'].fator_conversao_nopat. Ver CONTEXT.md, Fase 1."
+      },
+      "cap_crescimento_ciclico": {
+        "valor": 0.08,
+        "fonte": "manual",
+        "confianca": "media",
+        "data_atualizacao": "2026-07-22",
+        "motivo_override": "CAP_CRESCIMENTO_CICLICO_PADRAO de valuation-tracker/valuation/perfil_setor.py — cap genérico aplicado a todo setor eh_ciclico=True, 'Alimentos' não tinha override próprio. Ver CONTEXT.md, Fase 1."
+      },
+      "pct_divida_moeda_estrangeira": {
+        "valor": 0.90,
+        "fonte": "manual",
+        "confianca": "alta",
+        "data_atualizacao": "2026-07-22",
+        "motivo_override": "Achado real e confirmado em valuation-tracker/valuation/wacc.py: 90% da dívida bruta da BEEF3/Minerva em moeda estrangeira — gerou spread de WACC (Kd de 17,25% para 19,50%) durante a investigação original. Ver CONTEXT.md, Fase 1."
+      },
+      "tags": [
+        {
+          "tag": "alavancagem_usd",
+          "justificativa": "90% da dívida bruta em moeda estrangeira (dado real, confirmado via CVM no valuation-tracker) — maior exposição cambial de dívida já documentada entre os tickers investigados."
+        }
+      ],
+      "notas": "Setor bruto reportado pelo provedor é 'Alimentos Processados', normalizado para 'Alimentos' (mesmo racional de valuation-tracker/dados/normalizacao_setor.py — mesma economia de negócio, mesma calibração)."
+    },
+
+    "WIZC3": {
+      "setor": "Previdência e Seguros",
+      "eh_regulado": true,
+      "taxonomia_financeira_especial": true,
+      "beta_referencia": {
+        "valor": 0.85,
+        "fonte": "manual",
+        "confianca": "media",
+        "data_atualizacao": "2026-07-22",
+        "motivo_override": "Migrado de valuation-tracker/valuation/perfil_setor.py::PERFIS_SETOR['Previdência e Seguros'].beta_referencia. Ver CONTEXT.md, Fase 1."
+      },
+      "ev_ebitda_medio_referencia": {
+        "valor": 8.0,
+        "fonte": "manual",
+        "confianca": "media",
+        "data_atualizacao": "2026-07-22",
+        "motivo_override": "Migrado de valuation-tracker/valuation/perfil_setor.py::PERFIS_SETOR['Previdência e Seguros'].ev_ebitda_medio — mantido só como referência auditável; EV/EBITDA é método inválido pra este perfil (taxonomia_financeira_especial=True). Ver CONTEXT.md, Fase 1."
+      },
+      "fator_conversao_nopat_referencia": {
+        "valor": 0.0,
+        "fonte": "manual",
+        "confianca": "media",
+        "data_atualizacao": "2026-07-22",
+        "motivo_override": "Migrado de valuation-tracker/valuation/perfil_setor.py::PERFIS_SETOR['Previdência e Seguros'].fator_conversao_nopat=0.0 — NOPAT->FCL não se aplica a seguradoras (mesma razão de bancos). Ver CONTEXT.md, Fase 1."
+      },
+      "tags": [],
+      "notas": "Caso deliberado de 'perfil completo, zero tags especiais' (ver CONTEXT.md, Fase 1) — exercita a diferença entre ticker desconhecido (TickerSemPerfilError) e ticker sem situação econômica especial (frozenset() vazio, válido)."
+    }
+  }
+}

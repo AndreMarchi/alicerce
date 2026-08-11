@@ -36,12 +36,21 @@ alicerce/
 
 ## Status
 
-🚧 Fase 0 em andamento — schema de proveniência (`src/alicerce/proveniencia/schema.py`)
-já tem uma primeira versão. Próximo passo: cascata de fontes real
-(Fundamentus → Brapi → yfinance → CVM) e carga dos 5 tickers-piloto.
+✅ Fase 0 concluída — schema de proveniência (`src/alicerce/proveniencia/schema.py`).
+
+✅ Fase 1 concluída — motor de perfis (`src/alicerce/perfis/`): `PerfilSetor`
+(`perfil_setor.py`), tags de perfil econômico (`tags.py`) e o motor
+(`motor.py`, `obter_perfil`/`obter_tags`/`obter_atribuicoes_tags`), com os
+6 tickers-piloto cadastrados em `dados/perfis_ticker.json`. 43 testes
+passando (`tests/unit`, `tests/provenance_contract`). Ver `CONTEXT.md`,
+seção "Fase 1 — Motor de Perfis", para a investigação e decisões por
+trás disso.
+
+Próximo passo (Fase 2): sanity checks contra mercado e `RegraPerfil`
+(composição de tags em decisão de metodologia).
 
 ## Tickers-piloto
 
-`TAEE3`, `GEPA4`, `WIZC3`, `ITSA4`, `CPLE3` — já analisados a fundo no
-projeto anterior, servem de gabarito de comportamento esperado para o
-motor de perfis (Fase 1).
+`TAEE3`, `GEPA4`, `WIZC3`, `ITSA4`, `CPLE3`, `BEEF3` — já analisados a
+fundo no projeto anterior, servem de gabarito de comportamento esperado
+para o motor de perfis (Fase 1).
