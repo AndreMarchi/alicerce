@@ -719,6 +719,71 @@ grandeza consistente com a faixa de preço real do TAEE3 já registrada em
 levanta erro (zero e negativo), `g` negativo permitido (caso de borda).
 **65 testes passando no total** (57 anteriores + 8 novos).
 
+## Fase 2 — primeira fatia: classificação de divergência (concluída)
+
+Primeira peça da Fase 2 ("Sanity check contra mercado", ver
+`docs/ROADMAP.md`). Investigação antes de implementar (pedido: "avançar
+pra Fase 2") encontrou o mesmo tipo de lacuna já visto com
+`RegraPerfil`: a fase completa (rodar nos 62 tickers, comparando "valor
+calculado" real vs. preço de mercado real) está bloqueada — não existe
+campo de preço de mercado em `PerfilSetor`, e não existe "valor
+calculado" ponta a ponta pra nenhum ticker (DDM existe como função pura,
+mas TAEE3 não está populado e `RegraPerfil` não existe). Escopo reduzido
+a uma fatia mínima que não depende de nada disso: só a lógica de
+classificação.
+
+### O que foi implementado
+
+`backend/src/alicerce/sanity/divergencia.py::classificar_divergencia(
+valor_calculado, preco_mercado, limiar_moderada, limiar_severa) ->
+ResultadoDivergencia` — função pura, mesmo padrão de
+`descontinuidade_preco.py`/`ddm.py`. Retorna `classificacao`
+(`"divergencia_severa"` | `"divergencia_moderada"` | `"dentro_da_faixa"`)
+e `percentual_divergencia` (com sinal — positivo = valor calculado acima
+do mercado). Mora em `sanity/`, que já estava reservado pra isso
+(`README.md`: *"sanity/ — Fase 2 — divergência vs. mercado"*).
+
+### Decisão de escopo desta sessão: limiares SEM default
+
+`limiar_moderada`/`limiar_severa` são parâmetros **obrigatórios**, sem
+valor default — decisão explícita, diferente do padrão usado em
+`RAZAO_MAX_MIN_52W_SUSPEITA` (que tinha um default justificável por
+padrões reais de grupamento/desdobramento na B3, calibrado depois contra
+dado real). Aqui, `grep` confirmou que **nenhum valor de limiar de
+divergência está referenciado em nenhum lugar de `CONTEXT.md` ou
+`docs/ROADMAP.md`** — só os nomes das 3 classificações, nunca um
+percentual. Inventar um número "razoável" agora seria uma escolha
+implícita sem base, exatamente o que a Fase 0/1 do projeto sempre evitou
+pra dado numérico. **Calibrar esses valores contra dado real (ou decisão
+explícita do usuário) é uma tarefa pendente separada** — mesmo padrão já
+usado pro limiar de descontinuidade de preço (implementado primeiro com
+racional, calibrado depois contra 14 tickers reais).
+
+Não valida a ordem relativa entre os dois limiares (`limiar_severa`
+deveria ser ≥ `limiar_moderada` pra fazer sentido semântico, mas isso não
+é forçado em código) — mesmo espírito de "não travar por precaução
+excessiva não pedida" já aplicado ao `g` negativo do DDM.
+
+### Testes (11 novos, sem mocks)
+
+`backend/tests/unit/test_divergencia.py`: dentro da faixa, moderada,
+severa, divergência negativa classificada pela magnitude (não pelo
+sinal), bordas exatas nos dois limiares (não disparam) e logo acima
+(disparam), `preco_mercado <= 0` levanta erro, e um teste que trava a
+decisão de "sem default" (`TypeError` ao chamar sem os limiares).
+**76 testes passando no total** (65 anteriores + 11 novos).
+
+### Fora do escopo desta fatia (pendências explícitas)
+
+- Tolerância derivada automaticamente de `PerfilSetor`/tags (hoje é só
+  parâmetro direto).
+- Campo de preço de mercado atual em `PerfilSetor` — não existe.
+- Dashboard/relatório de maiores divergências.
+- Rodar nos 62 tickers (Lote 2) — só os 6 pilotos existem hoje, e
+  nenhum tem "valor calculado" ponta a ponta ainda.
+- Calibração dos valores de `limiar_moderada`/`limiar_severa` — ver
+  decisão acima.
+
 ## Convenções ao pedir mudanças pro Claude Code
 
 - Caminho de arquivo exato + número de linha quando for correção pontual.
