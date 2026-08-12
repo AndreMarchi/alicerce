@@ -323,6 +323,17 @@ especial" (`frozenset()` válido).
    quê" (quais tags um ticker tem), nunca "quando aplicar" — isso é
    `RegraPerfil`, Fase 2.
 
+   `RegraPerfil`: investigado numa sessão posterior, implementação
+   adiada — depende de existir ao menos um método de valuation real
+   (DCF/DDM/FCFE/SOTP) no Alicerce, e hoje nenhum existe (confirma este
+   mesmo princípio acima, não uma decisão nova). Quando retomado: CPLE3
+   (`CONCESSAO`+`ESTATAL_CONTROLADA` simultâneas) não é um caso de
+   conflito real entre regras, é complementar — não é preciso desenhar
+   mecanismo de precedência ainda. `dcf_concessao.py` do
+   `valuation-tracker` antigo: quando a regra de `CONCESSAO` for
+   implementada, só referenciar em docstring/comentário, não portar o
+   código diretamente.
+
 ## Estrutura de monorepo (concluída)
 
 Status: aprovada e executada. `backend/` (todo o código Python: `src/`,
@@ -633,6 +644,80 @@ opcional sem quebrar o perfil, `esta_desatualizado` reaproveitado) e
 `_CAMPOS_REFERENCIA_ESPERADOS` pra `_CAMPOS_NUMERICOS_ESPERADOS` —
 já não é só campos com sufixo `_referencia` — com `volume_medio_diario`
 incluído). **57 testes passando** (54 anteriores + 3 novos).
+
+## DDM (Gordon Growth) — função pura (concluída)
+
+Primeiro método de valuation implementado no Alicerce (nenhum existia
+antes). Investigação anterior confirmou: `DDM_ONLY` é a única
+`TagPerfilEconomico` com mapeamento 1:1 já validado (TAEE3, único
+ticker-piloto com essa tag); nenhuma fórmula de DDM/FCFE/DCF/SOTP estava
+especificada em `CONTEXT.md`/`ROADMAP.md` antes desta sessão; nenhum
+campo de entrada de DDM existia em `PerfilSetor`.
+
+### O que foi implementado e onde mora
+
+`backend/src/alicerce/valuation/ddm.py::calcular_ddm(dividendo_projetado,
+ke, g) -> float` — Gordon Growth (`dividendo_projetado / (ke - g)`),
+função pura, sem estado, sem I/O.
+
+**Localização — `valuation/`, pacote novo.** Verificado antes de criar:
+nenhum dos 6 pacotes vazios já existentes é descrito em
+`README.md`/`docs/ROADMAP.md` como o lugar dos MÉTODOS de valuation
+individuais — `pipeline/` é "orquestração calculation-pipeline"
+(orquestra estágios, não é onde a fórmula mora), `capm/` é
+especificamente CAPM/WACC (Fase 3), `consenso/` combina métodos já
+calculados (Fase 4), `sanity/`/`qualitativo/`/`backtesting/` são outras
+fases. Nenhum encaixe real — `valuation/` criado como pacote novo,
+mesmo termo já usado em todo o projeto pra "métodos de valuation".
+
+### Decisões de validação (revisar se discordar)
+
+- `dividendo_projetado <= 0` → `ValueError`. `ke <= 0` → `ValueError`.
+  `ke <= g` → `ValueError` (perpetuidade diverge).
+- **`g` negativo é PERMITIDO, não travado.** É matematicamente válido no
+  modelo (declínio de dividendo) e não há critério documentado no
+  projeto pra proibir — travar seria precaução não pedida. Só o guard
+  `ke > g` cobre o caso patológico.
+
+### `Ke` continua parâmetro, não campo — de propósito
+
+`Ke` (custo de capital próprio) é recebido como argumento direto de
+`calcular_ddm()`, nunca calculado internamente — o Alicerce não tem CAPM
+ainda (Fase 3, pacote `capm/` continua vazio). Isso é deliberado, não
+uma lacuna: adicionar `Ke` como campo de `PerfilSetor` agora seria
+antecipar Fase 3 sem necessidade. **Não recriar isso como campo numa
+sessão futura antes do CAPM existir de fato.**
+
+### Pendente pra quando TAEE3 for populado (tarefa futura, não desta sessão)
+
+Dois campos que ainda não existem em `PerfilSetor` e precisariam ser
+adicionados antes de popular TAEE3 com dado real de DDM — ambos como
+`CampoComProveniencia`, mesmo padrão dos campos já existentes:
+
+- `dividendo_projetado` (ou `dpa_projetado`).
+- `taxa_crescimento_perpetuidade_ddm`.
+
+Nenhum dos dois foi criado nesta sessão — só a função pura, como pedido.
+
+### `RegraPerfil` continua não implementado
+
+Esta tarefa destrava a peça que faltava (um método real pra `RegraPerfil`
+escolher), mas **não implementa o `Protocol` em si** — isso continua
+pendente (ver "Decisões confirmadas" da Fase 1, acima). Agora que
+`calcular_ddm()` existe, `RegraPerfil` pra `DDM_ONLY` deixa de esbarrar
+no bloqueio "nenhum método de valuation existe" — mas ainda precisa ser
+implementado numa sessão própria.
+
+### Testes (8 novos, sem mocks)
+
+`backend/tests/unit/test_ddm.py`: caso normal (números SINTÉTICOS
+plausíveis — CONTEXT.md não tem os inputs reais de DDM do TAEE3
+registrados, só a justificativa da tag, sem os números — ordem de
+grandeza consistente com a faixa de preço real do TAEE3 já registrada em
+"Calibração do limiar" acima), `ke == g` e `ke < g` levantam erro,
+`dividendo_projetado <= 0` levanta erro (zero e negativo), `ke <= 0`
+levanta erro (zero e negativo), `g` negativo permitido (caso de borda).
+**65 testes passando no total** (57 anteriores + 8 novos).
 
 ## Convenções ao pedir mudanças pro Claude Code
 
