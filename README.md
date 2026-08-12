@@ -11,9 +11,9 @@ o plano de fases completo (Fase 0 a Fase 6).
 ## Estrutura
 
 Monorepo desde a Fase 1: `backend/` (todo o código Python) e `frontend/`
-(reservado, sem código ainda — ver `frontend/README.md`). `CONTEXT.md`,
-`README.md` e `docs/` ficam na raiz por descreverem o projeto como um
-todo, não só o backend.
+(esqueleto React/TypeScript/Vite, sem API conectada ainda — ver
+`frontend/README.md`). `CONTEXT.md`, `README.md` e `docs/` ficam na raiz
+por descreverem o projeto como um todo, não só o backend.
 
 ```
 alicerce/
@@ -39,7 +39,7 @@ alicerce/
 │       ├── integration/
 │       ├── provenance_contract/
 │       └── sanity/
-└── frontend/                     # reservado, sem stack decidida ainda
+└── frontend/                     # React + TypeScript + Vite, esqueleto sem API conectada
 ```
 
 ## Como rodar (backend)
@@ -65,6 +65,10 @@ decisões por trás disso.
 ✅ Reorganizado em monorepo (`backend/`/`frontend/`) — ver `CONTEXT.md`,
 seção "Estrutura de monorepo". Nenhuma mudança de lógica, só de caminho;
 os 43 testes continuam passando a partir de `backend/`.
+
+✅ Frontend — esqueleto rodando local (`frontend/`, React + TypeScript +
+Vite), adiantado frente ao roadmap (Fase 4+) a pedido do usuário. Sem
+API conectada — ver `CONTEXT.md`, seção "Frontend — esqueleto".
 
 Próximo passo (Fase 2): sanity checks contra mercado e `RegraPerfil`
 (composição de tags em decisão de metodologia).

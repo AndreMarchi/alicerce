@@ -784,6 +784,50 @@ decisão de "sem default" (`TypeError` ao chamar sem os limiares).
 - Calibração dos valores de `limiar_moderada`/`limiar_severa` — ver
   decisão acima.
 
+## Frontend — esqueleto (concluído, fora da ordem de fases)
+
+Pedido explícito do usuário pra ter um frontend rodando localmente,
+adiantado frente ao `docs/ROADMAP.md` (que marca frontend como Fase 4+,
+"Fases 0-3 são backend puro, sem UI"). Confirmado com o usuário antes de
+implementar: stack (React + TypeScript + Vite, mesma base do
+`valuation-tracker`), escopo (**só esqueleto rodando local, sem dado
+real** — não junto com endpoint de API) e uso do `valuation-tracker`
+como referência de CONFIGURAÇÃO, não de conteúdo.
+
+### O que existe
+
+`frontend/` deixou de ser só `.gitkeep` + `README.md`: projeto Vite
+completo (`npm create vite@latest -- --template react-ts`, versões de
+dependência resolvidas pelo scaffolding oficial, não fixadas à mão),
+com `App.tsx` mínimo próprio do Alicerce (sem boilerplate de marketing
+do template) e CSS mínimo com suporte a light/dark
+(`prefers-color-scheme`, sem framework de CSS — nenhuma decisão de
+design system foi tomada). `npm install`, `npm run build` e `npm run
+lint` confirmados funcionando; servidor de dev testado de verdade no
+browser (`npm run dev`, screenshot conferido, console sem erros).
+
+### Decisões de configuração
+
+- **Porta fixa 5180** (não a 5173 padrão do Vite) — o `valuation-tracker`
+  antigo já ocupa 5173 localmente; os dois projetos rodam ao mesmo
+  tempo sem conflito.
+- **Sem proxy `/api`** — diferente do `vite.config.ts` do
+  `valuation-tracker` (que aponta pra `localhost:8000`), porque o
+  Alicerce não tem nenhum endpoint ainda. Comentário deixado no código
+  apontando o padrão a seguir quando existir.
+- **`oxlint`** em vez de `eslint` (usado no `valuation-tracker`) — é o
+  padrão atual do scaffolding oficial do Vite, mais rápido; optei por
+  não reverter pra uma ferramenta mais antiga só pra bater com a
+  referência.
+- `.claude/launch.json` criado (`npm run dev --prefix frontend`, porta
+  5180) pra rodar via preview.
+
+### Fora do escopo desta tarefa (de propósito)
+
+Nenhuma chamada de API, nenhum dado real, nenhum endpoint criado no
+backend, nenhuma decisão de design system/CSS framework, nenhum roteador
+— tudo isso é Fase 4+ ou tarefa própria futura.
+
 ## Convenções ao pedir mudanças pro Claude Code
 
 - Caminho de arquivo exato + número de linha quando for correção pontual.
