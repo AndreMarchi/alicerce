@@ -70,6 +70,60 @@ REGRAS: dict[str, RegraPerfil] = {
     "generico_dcf": RegraFallback(),                 # → fallback explícito, não default disfarçado
 }
 ```
+- Achado real que motiva priorização dentro de `RegraPerfil` (auditoria
+  cruzando 9 tickers reais de prejuízo do usuário contra os bugs/
+  pendências já documentados no `valuation-tracker` — evidência
+  concreta, não hipótese): aplicar os mesmos métodos de valuation de
+  forma genérica produz números estruturalmente errados por CATEGORIA,
+  não só por caso pontual mal calibrado. 4 perfis confirmados, nesta
+  ordem de prioridade:
+  1. **Insolvência confirmada** (maior prioridade). Caso real: LIGT3
+     (Light S.A., recuperação judicial — pedido de encerramento
+     protocolado jul/2026, ainda pendente de decisão judicial na data
+     da investigação). O `valuation-tracker` tem
+     `EMPRESAS_RECUPERACAO_JUDICIAL`, mas é lista hardcoded manual (só 4
+     tickers) com penalização de score fraca demais — não impede a
+     empresa de aparecer bem ranqueada. Diferente dos outros 3 perfis
+     abaixo: não é uma decisão de "qual método de valuation usar" — é
+     um portão binário (isso não deveria aparecer como recomendação de
+     compra, independente do score calculado). Mais simples de
+     implementar que os outros 3, e o de maior risco se não existir.
+  2. **Fundo/classe de ativo incompatível**. Caso real: RZAG11 (FIAGRO
+     — fundo de crédito do agronegócio), mais 2 outros tickers
+     terminados em "11" identificados na mesma auditoria (provavelmente
+     FIIs). Sem tratamento especial, o `valuation-tracker` roda
+     DCF/Graham/Bazin (métodos desenhados pra empresa com lucro/
+     crescimento) num fundo que distribui quase toda a renda como
+     dividendo por lei e não tem "crescimento" no sentido que esses
+     métodos assumem. Erro mais grave estruturalmente (classe de ativo
+     inteira incompatível, não só setor mal calibrado), mas barato de
+     detectar (padrão de ticker/tipo de ativo já costuma vir
+     identificado na fonte de dado).
+  3. **Financeiro/seguradora**. Caso real: WIZC3 — o caso que motivou
+     toda a consolidação de `PerfilSetor` no `valuation-tracker`: setor
+     mal classificado rodava DCF/EV-EBITDA/Graham numa corretora de
+     seguros, score 8,2 ("Muito Atrativa/Alta Convicção"); depois da
+     correção (métodos marcados "Não aplicável" pra esse perfil), caiu
+     pra 5,8 ("Neutra"). Já existe precedente resolvido no projeto
+     irmão — a lógica de decisão (quais métodos não se aplicam a perfil
+     financeiro) pode ser reaproveitada como referência de design, mesmo
+     que os números/calibração sejam recalculados do zero no Alicerce.
+  4. **Patrimonial/imóveis** (menor prioridade, mais difícil). Caso
+     real: HBRE3 (HBR Realty) — o próprio `valuation-tracker` documenta
+     isso como pendência não resolvida: fica em perfil genérico
+     (fallback), sem calibração própria, com uma pergunta de modelagem
+     em aberto (P/VP/NAV deveria ter peso maior que P/L pra esse
+     perfil). Diferente dos outros 3 ("não aplicar método X"), esse caso
+     exige desenhar uma abordagem de valuation nova (baseada em
+     patrimônio, não em lucro) — possivelmente um método que nem existe
+     ainda no Alicerce, não só roteamento de `PerfilSetor`.
+
+  **Isso não desbloqueia nem antecipa a implementação de `RegraPerfil`**
+  — a decisão de adiar continua valendo até existir mais de um método
+  real de valuation no Alicerce (ver CONTEXT.md). É documentação
+  antecipada de requisito pra quando `RegraPerfil` for retomado não
+  precisar redescobrir isso do zero, não mudança de escopo da fase
+  atual.
 - Classificação dos ~62 tickers existentes em perfis (não mais só setor).
   Esperado: 5-8 perfis cobrem ~90% dos casos.
 - Casos pendentes (Educação, Exploração de Imóveis) resolvidos como perfil
