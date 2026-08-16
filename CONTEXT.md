@@ -1182,6 +1182,108 @@ propagando o mesmo erro fim-a-fim via `monkeypatch` de
 `obter_tags`/`obter_perfil` (sem tocar no JSON real). **97 testes
 passando no total** (91 anteriores + 6 novos).
 
+## Perfil de insolvência confirmada — portão de segurança (concluído, só detecção)
+
+Primeiro dos 4 perfis de `RegraPerfil` encontrados na auditoria do
+valuation-tracker (`docs/ROADMAP.md`, commit `0f66774`, maior
+prioridade): insolvência confirmada. Caso real de referência: LIGT3
+(Light S.A., recuperação judicial) — não é um dos 6 tickers-piloto do
+Alicerce, só o caso que motiva o perfil.
+
+**Diferença conceitual da tarefa anterior (`DDM_ONLY`)**: aquele perfil
+decide qual MÉTODO usar; este é um PORTÃO BINÁRIO — "isso não deveria
+produzir recomendação de compra, independente do que qualquer método
+calcule" (distinção já registrada no ROADMAP antes desta tarefa).
+
+### Decisão de nomenclatura — investigada antes de nomear, não assumida
+
+Duas perguntas feitas explicitamente antes de escrever qualquer código:
+
+1. **Campo em `PerfilSetor`: bool simples ou `TagPerfilEconomico`
+   nova?** Bool simples, `em_recuperacao_judicial: bool = False` —
+   mesmo padrão de `eh_estatal`/`eh_regulado`/`eh_ciclico` (ver
+   `perfil_setor.py`). NÃO virou tag nova: `tags.py` já limita
+   explicitamente o escopo das tags existentes a alimentar a composição
+   de METODOLOGIA via `RegraPerfil` (`DDM_ONLY`, `CONCESSAO`,
+   `ESTATAL_CONTROLADA`, etc. — todas "qual método/ajuste usar");
+   insolvência é ortogonal a isso, um pré-filtro que bloqueia
+   recomendação ANTES de qualquer método rodar, não mais uma entrada no
+   mesmo conjunto.
+2. **A função deveria evitar o nome `RegraPerfil`, como
+   `calcular_valor_ddm_only()` já evitou?** Sim, mas por um motivo
+   DIFERENTE do caso `DDM_ONLY`: lá, o motivo era `ContextoValuation`
+   não existir e não haver precedência ainda pra resolver — mas o
+   módulo ficou marcado como "candidato a virar uma implementação do
+   `Protocol` no futuro". Aqui não: um portão binário não tem "método"
+   nenhum a escolher, então **nem conceitualmente pertence à mesma
+   família de `RegraPerfil`** — não é candidato a virar uma das `N`
+   regras compostas, é um pré-filtro que rodaria ANTES de qualquer
+   `RegraPerfil`. Implementado em `perfis/insolvencia.py` (não
+   `pipeline/`, ao contrário de `ddm_only.py`) — pertence ao pacote de
+   CLASSIFICAÇÃO (junto de `motor.py`/`tags.py`/`perfil_setor.py`), não
+   ao de ORQUESTRAÇÃO de cálculo, porque não orquestra nada: só lê um
+   campo de `PerfilSetor`.
+
+### Campo em `PerfilSetor`
+
+`em_recuperacao_judicial: bool = False` — bool simples (não
+`CampoComProveniencia`; não é dado numérico, mesmo raciocínio de
+`eh_estatal`). Carregado em `motor.py::_carregar_perfis` a partir de
+`perfis_ticker.json`.
+
+### Tickers-piloto verificados (nenhum hardcoded no código — só no JSON de dados)
+
+Todos os 6 pesquisados em 17/08/2026 (nenhum assumido `False` por
+padrão sem checar):
+
+| Ticker | Empresa | `em_recuperacao_judicial` | Fonte/evidência |
+|---|---|---|---|
+| TAEE3 | Taesa | `false` | RI/notícias: resultados trimestrais e proventos regulares em 2026, sem indício de RJ |
+| CPLE3 | Copel | `false` | Migração ao Novo Mercado, distribuição bilionária de dividendos em 2026, sem indício de RJ |
+| GEPA4 | Rio Paranapanema Energia (controlada por CTG) | `false` | Atas/comunicados de 2026 sem indício de RJ — mas ver anomalia de BPP/DRE zerados na CVM desde 2024 já documentada (Fase 1), não relacionada a insolvência, apenas um alerta de qualidade de dado separado |
+| ITSA4 | Itaúsa | `false` | Lucro recorde no 1S26, rating AAA reafirmado pela S&P (mai/2026) |
+| BEEF3 | Minerva | `false` | Lucro positivo no 2T26 (em queda, mas positivo), captação de dívida nova no mercado internacional — alavancada (já documentado via `pct_divida_moeda_estrangeira`), mas sem indício de RJ |
+| WIZC3 | Wiz Co | `false` | Lucro ajustado em alta, dívida líquida em queda de 46,1% no 1T26 |
+
+Nenhum dos 6 está em recuperação judicial hoje. Isso é resultado de
+pesquisa real, não suposição — se algum estivesse, o valor seria
+`true` sem hesitação (ver restrição explícita desta tarefa: dado real
+de insolvência não é motivo pra parar, é exatamente o que esse perfil
+deveria capturar).
+
+### Função implementada
+
+`perfis/insolvencia.py::ticker_bloqueado_por_insolvencia(ticker: str)
+-> bool` — função pura, sem hardcode de ticker (só lê
+`PerfilSetor.em_recuperacao_judicial` via `obter_perfil()`). Levanta
+`TickerSemPerfilError` pra ticker desconhecido — nunca retorna `False`
+por ausência de cadastro (seria falha silenciosa do mesmo tipo já
+criticado na auditoria do valuation-tracker, dado ausente tratado como
+"seguro" em vez de "não confirmado").
+
+### Pendência explícita — integração com pipeline NÃO decidida aqui
+
+Esta tarefa NÃO integra o portão com
+`pipeline/ddm_only.py::calcular_valor_ddm_only()` nem com nenhum outro
+lugar. Fica pendente, de propósito: como compor "bloqueado por
+insolvência" com o resultado de valuation (não chamar o método? chamar
+mas marcar resultado como bloqueado? outra abordagem?) é decisão de
+design que faz mais sentido quando houver mais de um perfil
+implementado e for hora de compor de verdade — decidir agora,
+isoladamente, seria antecipar um desenho sem o segundo caso real pra
+validar contra (mesmo princípio já aplicado à decisão de adiar
+`RegraPerfil` geral).
+
+### Testes (9 novos, `tests/unit/test_insolvencia.py`)
+
+Ticker marcado `em_recuperacao_judicial=True` (via `PerfilSetor`
+construído à mão + `monkeypatch`, já que nenhum dos 6 pilotos reais
+está nessa situação) → bloqueado; os 6 tickers-piloto reais → não
+bloqueados (parametrizado, dado real verificado); campo ausente usa o
+default `False` da dataclass; ticker desconhecido → `TickerSemPerfilError`
+explícito, não `False` silencioso. **106 testes passando no total**
+(97 anteriores + 9 novos).
+
 ## Convenções ao pedir mudanças pro Claude Code
 
 - Caminho de arquivo exato + número de linha quando for correção pontual.

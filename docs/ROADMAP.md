@@ -91,13 +91,27 @@ REGRAS: dict[str, RegraPerfil] = {
   forma genérica produz números estruturalmente errados por CATEGORIA,
   não só por caso pontual mal calibrado. 4 perfis confirmados, nesta
   ordem de prioridade:
-  1. **Insolvência confirmada** (maior prioridade). Caso real: LIGT3
+  1. **Insolvência confirmada** (maior prioridade). **STATUS: detecção
+     implementada, integração com pipeline PENDENTE** (ver CONTEXT.md,
+     "Perfil de insolvência confirmada — portão de segurança"):
+     `PerfilSetor.em_recuperacao_judicial` (bool, não
+     `TagPerfilEconomico` — portão binário, ortogonal à composição de
+     metodologia que as tags existentes alimentam) +
+     `perfis/insolvencia.py::ticker_bloqueado_por_insolvencia()`, função
+     pura sem hardcode de ticker, testada. Ainda NÃO composto com
+     `pipeline/ddm_only.py` nem com nenhum resultado de valuation — como
+     bloquear de fato (não calcular? calcular e marcar?) fica pra quando
+     houver mais de um perfil pra compor de verdade. Caso real: LIGT3
      (Light S.A., recuperação judicial — pedido de encerramento
      protocolado jul/2026, ainda pendente de decisão judicial na data
-     da investigação). O `valuation-tracker` tem
-     `EMPRESAS_RECUPERACAO_JUDICIAL`, mas é lista hardcoded manual (só 4
-     tickers) com penalização de score fraca demais — não impede a
-     empresa de aparecer bem ranqueada. Diferente dos outros 3 perfis
+     da investigação; não é um dos 6 tickers-piloto do Alicerce, só o
+     caso que motiva o perfil — os 6 pilotos foram verificados
+     individualmente e nenhum está em RJ, ver CONTEXT.md). O
+     `valuation-tracker` tem `EMPRESAS_RECUPERACAO_JUDICIAL`, mas é
+     lista hardcoded manual (só 4 tickers) com penalização de score
+     fraca demais — não impede a empresa de aparecer bem ranqueada;
+     o Alicerce não repete esse padrão (dado sempre via `PerfilSetor`,
+     nunca lista hardcoded no código). Diferente dos outros 3 perfis
      abaixo: não é uma decisão de "qual método de valuation usar" — é
      um portão binário (isso não deveria aparecer como recomendação de
      compra, independente do score calculado). Mais simples de

@@ -78,6 +78,7 @@ def _carregar_perfis() -> dict[str, PerfilSetor]:
             eh_ciclico=dados.get("eh_ciclico", False),
             taxonomia_financeira_especial=dados.get("taxonomia_financeira_especial", False),
             eh_estatal=dados.get("eh_estatal", False),
+            em_recuperacao_judicial=dados.get("em_recuperacao_judicial", False),
             beta_referencia=_campo_de_dict(dados.get("beta_referencia")),
             ev_ebitda_medio_referencia=_campo_de_dict(dados.get("ev_ebitda_medio_referencia")),
             psr_medio_referencia=_campo_de_dict(dados.get("psr_medio_referencia")),

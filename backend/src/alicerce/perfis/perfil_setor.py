@@ -53,6 +53,26 @@ class PerfilSetor:
     # maioria isolada, e o mercado descreve a TAESA como empresa privada.
     eh_estatal: bool = False
 
+    # Insolvência confirmada (recuperação judicial) — PORTÃO BINÁRIO, não
+    # uma decisão de método de valuation (ver docs/ROADMAP.md, Fase 1,
+    # perfil de maior prioridade dos 4 encontrados na auditoria: "isso
+    # não deveria produzir recomendação de compra, independente do que
+    # qualquer método calcule"). Bool simples, mesmo padrão de
+    # `eh_estatal`/`eh_regulado` acima — não CampoComProveniencia (não é
+    # dado numérico), e deliberadamente NÃO uma `TagPerfilEconomico`
+    # nova (tags.py): as tags existentes (`DDM_ONLY`, `CONCESSAO`, etc.)
+    # alimentam a composição de METODOLOGIA via `RegraPerfil` (qual
+    # método usar); insolvência é ortogonal a isso — é um pré-filtro que
+    # bloqueia recomendação ANTES de qualquer método rodar, não mais uma
+    # entrada no mesmo conjunto de tags. Ver
+    # `perfis/insolvencia.py::ticker_bloqueado_por_insolvencia()` e
+    # CONTEXT.md, "Perfil de insolvência confirmada", pela decisão
+    # completa. Nenhum dos 6 tickers-piloto está em recuperação judicial
+    # hoje (pesquisado, não assumido — ver CONTEXT.md pelas fontes),
+    # então o default `False` reflete dado verificado, não um "não
+    # investiguei ainda" disfarçado.
+    em_recuperacao_judicial: bool = False
+
     # Referências numéricas — todas opcionais: None = "sem override, usa
     # o fallback genérico" de quem consumir isso depois (Fase 2+), nunca
     # um número inventado aqui.
