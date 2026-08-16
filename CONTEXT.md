@@ -759,19 +759,38 @@ explícita do usuário) é uma tarefa pendente separada** — mesmo padrão já
 usado pro limiar de descontinuidade de preço (implementado primeiro com
 racional, calibrado depois contra 14 tickers reais).
 
-Não valida a ordem relativa entre os dois limiares (`limiar_severa`
+~~Não valida a ordem relativa entre os dois limiares (`limiar_severa`
 deveria ser ≥ `limiar_moderada` pra fazer sentido semântico, mas isso não
 é forçado em código) — mesmo espírito de "não travar por precaução
-excessiva não pedida" já aplicado ao `g` negativo do DDM.
+excessiva não pedida" já aplicado ao `g` negativo do DDM.~~
 
-### Testes (11 novos, sem mocks)
+**Atualização (sessão seguinte): essa decisão foi revertida, não é mais
+válida.** Diferente do `g` negativo do DDM (que é um valor plausível,
+só incomum), `limiar_moderada > limiar_severa` não produz um resultado
+"conservador" — produz uma classificação sem sentido (ex: magnitude 12%
+cairia em `"divergencia_severa"` com `limiar_severa=10%`, mas nunca
+passaria por `"divergencia_moderada"` se `limiar_moderada=20% >
+limiar_severa`). `classificar_divergencia()` agora levanta `ValueError`
+pra essa inversão — mesmo padrão de `calcular_ddm()` (`Ke <= g`) e das
+travas de `calcular_capm()` (beta/rf fora de faixa plausível). Achado
+numa investigação de reconciliação de estado da sessão, não um pedido
+original — decisão de adicionar essa trava específica ainda carece de
+confirmação explícita do usuário em cada caso futuro semelhante, não
+deve ser tratada como precedente automático pra outras funções.
+
+### Testes (12 no total em `test_divergencia.py`, sem mocks)
 
 `backend/tests/unit/test_divergencia.py`: dentro da faixa, moderada,
 severa, divergência negativa classificada pela magnitude (não pelo
 sinal), bordas exatas nos dois limiares (não disparam) e logo acima
-(disparam), `preco_mercado <= 0` levanta erro, e um teste que trava a
-decisão de "sem default" (`TypeError` ao chamar sem os limiares).
-**76 testes passando no total** (65 anteriores + 11 novos).
+(disparam), `preco_mercado <= 0` levanta erro, um teste que trava a
+decisão de "sem default" (`TypeError` ao chamar sem os limiares) — 11
+originais — mais 1 novo (`limiar_moderada > limiar_severa` levanta
+erro, da atualização acima). **90 testes passando no total** (89
+anteriores + 1 novo — não 76: esse número, reportado numa tarefa
+anterior, estava desatualizado por engano — não refletia os 13 testes
+de CAPM já commitados antes dele; corrigido aqui após reconciliação
+explícita do estado do repositório).
 
 ### Fora do escopo desta fatia (pendências explícitas)
 

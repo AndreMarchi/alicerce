@@ -87,3 +87,11 @@ def test_limiares_sao_obrigatorios_sem_default():
     # chamar sem eles precisa falhar, não usar uma constante escondida.
     with pytest.raises(TypeError):
         classificar_divergencia(valor_calculado=100.0, preco_mercado=95.0)  # type: ignore[call-arg]
+
+
+def test_limiar_moderada_maior_que_severa_levanta_erro():
+    # Limiares invertidos não produzem resultado "conservador", produzem
+    # classificação sem sentido — trava explícita, mesmo padrão de
+    # calcular_ddm()/calcular_capm().
+    with pytest.raises(ValueError, match="limiar_moderada"):
+        classificar_divergencia(valor_calculado=100.0, preco_mercado=95.0, limiar_moderada=0.30, limiar_severa=0.10)

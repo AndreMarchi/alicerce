@@ -63,14 +63,24 @@ def classificar_divergencia(
     (é preciso ultrapassar) — mesma convenção de borda já usada em
     `descontinuidade_preco.py::eh_descontinuidade_suspeita`.
 
-    Não valida a ordem relativa entre `limiar_moderada` e
-    `limiar_severa` — a chamadora é responsável por passar limiares
-    coerentes (mesmo espírito de "não travar por precaução excessiva
-    não pedida" já aplicado em `valuation/ddm.py` pro crescimento
-    negativo).
+    `limiar_moderada > limiar_severa` (limiares invertidos) levanta
+    `ValueError` — decisão revisada (ver CONTEXT.md): limiares
+    invertidos não produzem um resultado "conservador", produzem uma
+    classificação sem sentido (ex: magnitude 12% cairia em
+    "divergencia_severa" com limiar_severa=10% mas nunca passaria por
+    "divergencia_moderada" se limiar_moderada=20% > limiar_severa) —
+    mesmo padrão de erro explícito já usado em `calcular_ddm()`
+    (`Ke <= g`) e nas travas de `calcular_capm()` (beta/rf fora de faixa
+    plausível).
     """
     if preco_mercado <= 0:
         raise ValueError(f"preco_mercado precisa ser > 0 (recebido: {preco_mercado}).")
+    if limiar_moderada > limiar_severa:
+        raise ValueError(
+            f"limiar_moderada ({limiar_moderada}) não pode ser maior que "
+            f"limiar_severa ({limiar_severa}) — limiares invertidos "
+            "produzem classificação sem sentido."
+        )
 
     percentual_divergencia = (valor_calculado - preco_mercado) / preco_mercado
     magnitude = abs(percentual_divergencia)
