@@ -1099,6 +1099,89 @@ Agora que existe UM ticker (TAEE3) com dado real ponta a ponta,
 de esbarrar em "nenhum dado real pra testar contra". Continua sendo
 trabalho de uma sessão própria, não implementado aqui.
 
+## Roteamento mínimo DDM_ONLY — não é `RegraPerfil` (concluído)
+
+Objetivo: TAEE3 (e qualquer outro ticker que ganhe a tag `DDM_ONLY` no
+futuro) deixar de precisar de chamada manual sabendo de antemão "esse
+ticker usa DDM" — o que o teste de integração anterior
+(`test_taee3_ddm_capm_e2e.py`, commit `3b7fdf7`) já validava, mas só
+manualmente. **Escopo estreito de propósito: só o caso `DDM_ONLY`.** Os
+outros 3 perfis já documentados (insolvência, fundo incompatível,
+financeiro/seguradora, patrimonial — ver "Fase 1 — Motor de Perfis")
+continuam pendentes, e precedência entre regras continua não
+implementada — não há conflito possível ainda com um único caso.
+
+### Divergência de nome com `RegraPerfil` — decisão deliberada, não descuido
+
+`RegraPerfil` já está reservado no `docs/ROADMAP.md` (Fase 1, ~linha 61)
+como um `Protocol` — `aplicar(self, contexto: ContextoValuation) ->
+ContextoValuation` — parte de um design GERAL de composição de `N`
+regras com precedência (`REGRAS: dict[str, RegraPerfil]`). Dois motivos
+concretos pra NÃO usar esse nome/formato nesta tarefa:
+
+1. `ContextoValuation` (o tipo que `aplicar()` recebe/devolve) não
+   existe em nenhum lugar do código — só pseudocódigo no ROADMAP.
+   Implementar o `Protocol` de verdade exigiria inventar esse tipo sem
+   um segundo caso de uso real pra validar o desenho.
+2. Só existe UM perfil aqui (`DDM_ONLY`) — o mecanismo de composição/
+   precedência que o `Protocol` existe pra resolver não tem nada pra
+   resolver ainda.
+
+Implementado em vez disso: `backend/src/alicerce/pipeline/ddm_only.py`
+(`pipeline/` — pacote já reservado como "orquestração
+calculation-pipeline" no README.md, nunca usado até agora; primeiro
+módulo real dele):
+
+- `calcular_valor_ddm_only(ticker: str, rf: float) ->
+  ResultadoValuationDDMOnly` — consulta `obter_tags(ticker)`; se não
+  tiver `TagPerfilEconomico.DDM_ONLY`, retorna sinal explícito
+  (`StatusValuationDDMOnly.SEM_METODO_APLICAVEL`), nunca `None`
+  silencioso nem tentativa de adivinhar outro método. Se tiver a tag,
+  valida os 4 campos obrigatórios de `PerfilSetor`
+  (`dividendo_projetado`, `taxa_crescimento_perpetuidade_ddm`,
+  `beta_referencia`, `valor_mercado` — `eh_estatal` fica de fora da
+  validação por ser bool com default `False`, nunca `None`), chama
+  `calcular_capm()` pra obter `Ke`, depois `calcular_ddm()`.
+- `ResultadoValuationDDMOnly` (dataclass frozen): `status`
+  (`StatusValuationDDMOnly`, enum `CALCULADO`/`SEM_METODO_APLICAVEL`),
+  `metodo` (`"DDM"` quando calculado), `valor_calculado`, `ke` — quem
+  chama precisa checar `status`, não inferir do valor de
+  `valor_calculado` sozinho.
+- `CampoObrigatorioAusenteError(ValueError)` — levantado se o ticker
+  tiver a tag mas `PerfilSetor` estiver incompleto (mesmo padrão de
+  erro explícito de `TickerSemPerfilError`, `perfis/motor.py`).
+- `rf` (Selic) continua parâmetro explícito do caller, não buscado
+  automaticamente — mesma decisão já tomada e documentada no teste de
+  integração anterior; não travou nada nesta implementação, confirmando
+  que a decisão segue válida.
+
+**Se `RegraPerfil` for retomado de verdade** (mais de um perfil
+precisando de composição), este módulo é candidato a virar UMA das
+implementações do `Protocol`, não o próprio roteador geral — não
+renomear por conta própria numa sessão futura sem decisão explícita.
+
+### Validação contra o resultado já conhecido
+
+`calcular_valor_ddm_only("TAEE3", rf=0.14)` reproduz EXATAMENTE
+`Ke=16%` (clampado) e `valor_calculado=R$7,92` — os mesmos números já
+validados manualmente em `test_taee3_ddm_capm_e2e.py`. Confirma que o
+roteamento automático não introduziu nenhuma diferença de
+comportamento frente ao cálculo manual.
+
+### Testes (6 novos, `tests/unit/test_pipeline_ddm_only.py`)
+
+Caso feliz (TAEE3, bate exatamente com o resultado conhecido); ticker
+sem a tag (CPLE3, retorna sinal explícito); ticker desconhecido
+(propaga `TickerSemPerfilError` do motor, não confundir com "sem
+método aplicável" — são casos diferentes); validação de campos
+obrigatórios passando com perfil completo; validação levantando erro
+com campo ausente (`PerfilSetor` construído à mão — TAEE3, único
+`DDM_ONLY` real, já está com todos os campos populados, então não dá
+pra reproduzir esse caso com dado real); `calcular_valor_ddm_only()`
+propagando o mesmo erro fim-a-fim via `monkeypatch` de
+`obter_tags`/`obter_perfil` (sem tocar no JSON real). **97 testes
+passando no total** (91 anteriores + 6 novos).
+
 ## Convenções ao pedir mudanças pro Claude Code
 
 - Caminho de arquivo exato + número de linha quando for correção pontual.

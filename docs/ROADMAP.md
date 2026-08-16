@@ -51,6 +51,20 @@ cálculo posterior.
 
 ## Fase 1 — Motor de perfis compostos (a causa raiz)
 
+**Status: PARCIAL, não concluída — 1 de N casos cobertos.** O motor de
+tags (`perfis/motor.py`, `perfis/tags.py`) e o `RegraPerfil`
+(`Protocol`) abaixo continuam desenhos separados: o motor de tags está
+implementado; `RegraPerfil` em si (a composição de `N` regras com
+precedência) continua só pseudocódigo. O que existe hoje é um roteador
+mínimo pro caso `DDM_ONLY` isolado
+(`pipeline/ddm_only.py::calcular_valor_ddm_only()`, deliberadamente NÃO
+nomeado `RegraPerfil` — ver CONTEXT.md, "Roteamento mínimo DDM_ONLY",
+pelos dois motivos exatos), sem `ContextoValuation`, sem os outros 3
+perfis (insolvência, fundo incompatível, financeiro/seguradora,
+patrimonial — todos abaixo, ainda pendentes), sem precedência entre
+regras. Pseudocódigo abaixo mantido como estava — é o design GERAL, não
+o que foi implementado até agora.
+
 **Objetivo:** substituir "um pipeline pra todos" por perfis como tags que
 se combinam, cada uma contribuindo uma regra de cálculo.
 
