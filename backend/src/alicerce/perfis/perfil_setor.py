@@ -38,6 +38,20 @@ class PerfilSetor:
     # conceitos limpos pro negócio (mesma razão documentada em
     # valuation-tracker/valuation/perfil_setor.py pra bancos/seguradoras).
     taxonomia_financeira_especial: bool = False
+    # Controle estatal (governo, direto ou golden share), consumido
+    # diretamente por capm.calcular_capm(eh_estatal=...) — bool simples
+    # como os demais campos de classificação acima, não
+    # CampoComProveniencia, porque não é um DADO NUMÉRICO (ver docstring
+    # da classe). Deliberadamente separado de
+    # `TagPerfilEconomico.ESTATAL_CONTROLADA` (tags.py): a tag existe pra
+    # composição de metodologia via `RegraPerfil` (ainda não
+    # implementado), este campo é o input direto e mais estreito que o
+    # CAPM já consome hoje. Ver CONTEXT.md, "TAEE3 — dados reais para
+    # DDM+CAPM", pela decisão de eh_estatal=False para TAEE3 apesar da
+    # CEMIG (estatal mineira) ser sócia controladora em conjunto com a
+    # ISA Brasil — controle é COMPARTILHADO, nenhuma das duas partes tem
+    # maioria isolada, e o mercado descreve a TAESA como empresa privada.
+    eh_estatal: bool = False
 
     # Referências numéricas — todas opcionais: None = "sem override, usa
     # o fallback genérico" de quem consumir isso depois (Fase 2+), nunca
@@ -60,6 +74,21 @@ class PerfilSetor:
     # duplicado). Opcional: None = liquidez ainda não investigada pra
     # esse ticker, nunca um número inventado.
     volume_medio_diario: Optional[CampoComProveniencia] = None
+
+    # Inputs de DDM (Gordon Growth, valuation/ddm.py::calcular_ddm) —
+    # ambos pendentes desde a sessão que implementou a função pura (ver
+    # CONTEXT.md, "DDM (Gordon Growth)", seção "Pendente pra quando TAEE3
+    # for populado"). Nome `dividendo_projetado` escolhido (não
+    # `dpa_projetado`, que era a alternativa em aberto) por consistência
+    # direta com o parâmetro de mesmo nome em `calcular_ddm()` — o valor
+    # flui de um pro outro sem tradução de nome no meio do caminho.
+    dividendo_projetado: Optional[CampoComProveniencia] = None
+    taxa_crescimento_perpetuidade_ddm: Optional[CampoComProveniencia] = None
+
+    # Input de CAPM (capm/capm.py::calcular_capm) — tamanho da empresa
+    # (R$), usado pro size premium. Mesmo campo que uma cascata de
+    # tamanho/liquidez futura reaproveitaria (não duplicar).
+    valor_mercado: Optional[CampoComProveniencia] = None
 
     notas: Optional[str] = None
 

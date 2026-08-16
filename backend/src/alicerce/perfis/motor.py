@@ -77,6 +77,7 @@ def _carregar_perfis() -> dict[str, PerfilSetor]:
             eh_regulado=dados.get("eh_regulado", False),
             eh_ciclico=dados.get("eh_ciclico", False),
             taxonomia_financeira_especial=dados.get("taxonomia_financeira_especial", False),
+            eh_estatal=dados.get("eh_estatal", False),
             beta_referencia=_campo_de_dict(dados.get("beta_referencia")),
             ev_ebitda_medio_referencia=_campo_de_dict(dados.get("ev_ebitda_medio_referencia")),
             psr_medio_referencia=_campo_de_dict(dados.get("psr_medio_referencia")),
@@ -84,6 +85,9 @@ def _carregar_perfis() -> dict[str, PerfilSetor]:
             pct_divida_moeda_estrangeira=_campo_de_dict(dados.get("pct_divida_moeda_estrangeira")),
             cap_crescimento_ciclico=_campo_de_dict(dados.get("cap_crescimento_ciclico")),
             volume_medio_diario=_campo_de_dict(dados.get("volume_medio_diario")),
+            dividendo_projetado=_campo_de_dict(dados.get("dividendo_projetado")),
+            taxa_crescimento_perpetuidade_ddm=_campo_de_dict(dados.get("taxa_crescimento_perpetuidade_ddm")),
+            valor_mercado=_campo_de_dict(dados.get("valor_mercado")),
             notas=dados.get("notas"),
         )
     return perfis

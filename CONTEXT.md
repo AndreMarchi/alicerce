@@ -942,6 +942,163 @@ explicitamente que a trava nova não regrediu o comportamento de clamp
 pra valores plausíveis (6 novos). **89 testes passando no total** (83
 anteriores + 6 novos).
 
+## TAEE3 — dados reais para DDM+CAPM + primeira integração ponta a ponta (concluída)
+
+**Escopo desta tarefa, deliberadamente estreito**: popular os campos que
+faltavam em `PerfilSetor` pra TAEE3 com dado real, e escrever um TESTE DE
+INTEGRAÇÃO demonstrando `calcular_capm()` alimentando `calcular_ddm()`
+com esse dado. **NÃO é wiring de produção** (nenhum endpoint, nenhuma
+alteração de roteamento) e **NÃO implementa `RegraPerfil`** (continua
+pendente, decisão já tomada antes — ver "Fase 1 — Motor de Perfis" e
+"DDM (Gordon Growth)", acima). Primeira vez que os dois métodos de
+valuation do Alicerce se conectam de fato no projeto, com número real.
+
+### Campos novos em `PerfilSetor` (`perfis/perfil_setor.py`)
+
+Os 2 campos já registrados como pendentes em "DDM (Gordon Growth)"
+acima, mais os 2 que faltavam pro CAPM:
+
+- `dividendo_projetado: Optional[CampoComProveniencia]` — nome escolhido
+  (não `dpa_projetado`, a alternativa que ficara em aberto) por
+  consistência direta com o parâmetro de mesmo nome em
+  `calcular_ddm()`.
+- `taxa_crescimento_perpetuidade_ddm: Optional[CampoComProveniencia]`.
+- `valor_mercado: Optional[CampoComProveniencia]` — input de tamanho pro
+  size premium do CAPM.
+- `eh_estatal: bool` — bool simples, não `CampoComProveniencia` (mesmo
+  padrão de `eh_regulado`/`eh_ciclico`/`taxonomia_financeira_especial`;
+  não é um dado NUMÉRICO). Deliberadamente separado de
+  `TagPerfilEconomico.ESTATAL_CONTROLADA` (`tags.py`): a tag existe pra
+  composição de metodologia via `RegraPerfil` (não implementado); este
+  campo é o input direto e mais estreito que `calcular_capm()` já
+  consome hoje. **Não colapsar os dois conceitos numa sessão futura sem
+  decisão explícita** — podem divergir (ex: um ticker com golden share
+  estatal mas sem controle majoritário claro).
+
+`motor.py::_carregar_perfis` atualizado pra passar os 4 campos novos do
+JSON pro construtor. `tests/provenance_contract/test_perfil_setor_provenance.py::_CAMPOS_NUMERICOS_ESPERADOS`
+atualizado com os 3 novos campos numéricos (contrato estrutural, não
+hardcoded campo-a-campo — ver docstring do arquivo).
+
+### Dados populados para TAEE3 (`perfis/dados/perfis_ticker.json`)
+
+Todos pesquisados em 17/08/2026, `fonte="manual"` (pesquisa externa
+manual nesta sessão, não uma integração automática de brapi/yfinance/
+fundamentus que o Alicerce ainda não tem):
+
+| Campo | Valor | Confiança | Por quê |
+|---|---|---|---|
+| `beta_referencia` (override do ticker, era 0.65 herdado do setor) | 0,96 | media | TradingView, base 12 meses — fonte única, sem segunda fonte independente (ex: Fundamentus 60 meses) pra cruzar |
+| `dividendo_projetado` | R$0,99 | **baixa** | Faixa de mercado R$0,99–R$1,16 — ver "Divergência de dividendo" abaixo |
+| `taxa_crescimento_perpetuidade_ddm` | 3,5% | **baixa** | Aproximação (RAP indexada a IPCA ⇒ g≈IPCA de longo prazo), não guidance da empresa — ver detalhe abaixo |
+| `valor_mercado` | R$13.070.288.532 | media | statusinvest.com.br; Investidor10 reportou R$12.962.967.000 na mesma data (~0,8% de divergência, mesmo tier de size premium do CAPM em ambos os casos) |
+| `eh_estatal` | `false` | — (bool simples) | Ver "Composição acionária" abaixo |
+
+**Composição acionária da TAESA** (`ri.taesa.com.br/estrutura-societaria-pitiguari/`,
+17/08/2026): controle COMPARTILHADO entre CEMIG (estatal mineira,
+36,97% do capital votante) e ISA Brasil (privada, 26,03% do capital
+votante), via acordo de acionistas com 63% de participação votante
+conjunta — nenhuma das duas partes tem maioria isolada. Diferente do
+padrão já estabelecido no projeto pra "estatal" (CPLE3: golden share do
+Governo do Paraná, controle estatal direto e inequívoco, ver `tags.py`).
+Por isso `eh_estatal=False` pra TAEE3: controle compartilhado com sócio
+privado majoritariamente maior em votos (CEMIG > ISA em %, mas nenhum
+dos dois > 50% sozinho) não é o mesmo caso de CPLE3, e o mercado descreve
+a TAESA como empresa de controle privado/misto. **Se uma sessão futura
+tratar isso como estatal por causa da CEMIG, revisar esta seção antes —
+não é uma omissão, é uma leitura deliberada da diferença entre "sócio
+estatal presente" e "controle estatal".**
+
+### Divergência de dividendo projetado — decisão de usar o valor conservador
+
+Fontes de mercado divergem numa faixa de **R$0,99 a R$1,16** por ação
+(2026), dependendo do payout assumido sobre o lucro regulatório
+projetado. Escolhido **R$0,99** (extremo inferior da faixa)
+deliberadamente: alimentando `calcular_ddm()`, um dividendo mais baixo
+produz um valor intrínseco mais baixo, reduzindo o risco de
+SUPERESTIMAR via DDM — mesmo padrão de cautela já registrado no projeto
+em casos de incerteza (`RAZAO_MAX_MIN_52W_SUSPEITA`/RVEE3: "validado
+contra os casos disponíveis", não valor estatisticamente ótimo).
+`confianca="baixa"` no campo reflete essa divergência real entre fontes,
+não uma leitura imprecisa de um número único.
+
+### `taxa_crescimento_perpetuidade_ddm` — raciocínio (não é dado medido)
+
+Sem taxa de crescimento de longo prazo divulgada pela própria TAESA. A
+RAP (Receita Anual Permitida) da TAEE3 é contratualmente reajustada por
+IPCA (concessões Categoria III: +5,32% no ciclo 2025-2026, confirmado),
+então o crescimento REAL do dividendo na perpetuidade tende a ~0% além
+da inflação — `g` aproximado pela expectativa de IPCA de LONGO PRAZO
+(Boletim Focus, 3,50% pra 2029, estável por 39 semanas seguidas,
+ancorado à meta de 3% do BCB), não a leitura de curto prazo (~5,16% pra
+2026, mais alta e transitória — perpetuidade pede taxa de regime
+permanente). `confianca="baixa"`: é uma aproximação metodológica, não um
+número guiado pela empresa. **Revisar se uma fonte real de guidance de
+crescimento da TAESA aparecer numa sessão futura.**
+
+### Selic usada no teste — valor pontual, não mecanismo permanente
+
+280ª reunião do Copom (04-05/08/2026): Selic cortada 0,25pp, fixada em
+**14,00% a.a.** Não existe mecanismo de busca de Selic no Alicerce ainda
+— não foi criado nesta tarefa (fora de escopo). O teste de integração
+usa `SELIC_2026_08_05 = 0.14` como constante hardcoded, com comentário
+explícito de que é valor de uma data específica (Selic muda a cada ~45
+dias, sujeita a mudar antes desta seção ser revisitada).
+
+### Teste de integração (`tests/integration/test_taee3_ddm_capm_e2e.py`)
+
+Primeiro teste do Alicerce que conecta os dois métodos de valuation
+implementados até agora, com dado real (não sintético) de `PerfilSetor`:
+
+```
+rf = 0.14 (Selic, 05/08/2026)
+beta = 0.96 (real, TAEE3)
+valor_mercado = R$13.070.288.532 (real, TAEE3, >R$10bi -> size premium 1%)
+eh_estatal = False
+
+ke_bruto = 0.14 + 0.96×0.055 + 0.025 + 0.01 + 0 = 0.2278 (22,78%)
+ke = clamp(0.2278) = 0.16 (16%, TETO do CAPM — Selic historicamente alta
+     em 2026 empurra o Ke pro teto; o clamp está fazendo trabalho real
+     aqui, não é caso de borda artificial)
+
+valor_intrinseco = 0.99 / (0.16 - 0.035) = 0.99 / 0.125 = R$7,92
+```
+
+**Resultado: R$7,92.** Preço de mercado de referência no dia em que o
+teste foi escrito (17/08/2026, statusinvest.com.br): **R$12,44** — o
+valor calculado fica em ~64% do preço de mercado, mesma ordem de
+grandeza, sem ser um número absurdo. **Isso não é
+`classificar_divergencia()`** (Fase 2) nem um sinal de "ação cara" —
+é só o sanity check de plausibilidade pedido nesta tarefa (positivo,
+razão entre 0,3 e 3,0 vs. preço de referência). O preço de mercado NÃO é
+persistido em `PerfilSetor` — é lido só no corpo do teste, como
+constante de referência de uma data específica, mesmo espírito da Selic
+acima.
+
+**Não chama `classificar_divergencia()`** de propósito — isso fica pra
+quando houver decisão sobre `preco_mercado` real fluindo pro sistema de
+forma permanente (campo em `PerfilSetor` ou mecanismo de busca), fora de
+escopo aqui.
+
+### Testes (2 novos + 1 teste existente ajustado)
+
+`tests/integration/test_taee3_ddm_capm_e2e.py`: 1 teste novo (o cenário
+acima). `tests/unit/test_motor.py::test_herda_referencias_do_setor_base_energia_eletrica`
+ajustado: TAEE3 saiu do loop de tickers que herdam beta do setor base,
+porque agora tem beta PRÓPRIO (0,96) que sobrescreve o fallback (0,65)
+— comportamento novo e esperado, não regressão; nova asserção
+equivalente adicionada em
+`test_campo_especifico_do_ticker_sobrescreve_o_do_setor_base`. **91
+testes passando no total** (89 anteriores + 2 novos, líquido de 0 —
+1 teste existente teve asserção ajustada, não removida).
+
+### Próximo passo real (não desta tarefa)
+
+Agora que existe UM ticker (TAEE3) com dado real ponta a ponta,
+`RegraPerfil` (`Protocol`, ainda não implementado — ver "Fase 1") deixa
+de esbarrar em "nenhum dado real pra testar contra". Continua sendo
+trabalho de uma sessão própria, não implementado aqui.
+
 ## Convenções ao pedir mudanças pro Claude Code
 
 - Caminho de arquivo exato + número de linha quando for correção pontual.

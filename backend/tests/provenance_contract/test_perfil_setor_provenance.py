@@ -25,6 +25,9 @@ _CAMPOS_NUMERICOS_ESPERADOS = {
     "pct_divida_moeda_estrangeira",
     "cap_crescimento_ciclico",
     "volume_medio_diario",
+    "dividendo_projetado",
+    "taxa_crescimento_perpetuidade_ddm",
+    "valor_mercado",
 }
 
 

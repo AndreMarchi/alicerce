@@ -56,10 +56,13 @@ def test_wizc3_tem_perfil_completo_mas_zero_tags_sem_erro():
 
 
 def test_herda_referencias_do_setor_base_energia_eletrica():
-    # TAEE3/CPLE3/GEPA4 não repetem beta/ev-ebitda/fator-nopat no JSON —
-    # devem vir do perfil-base "Energia Elétrica" via merge (ver
-    # CONTEXT.md, "Herança de setor").
-    for ticker in ("TAEE3", "CPLE3", "GEPA4"):
+    # CPLE3/GEPA4 não repetem beta/ev-ebitda/fator-nopat no JSON — devem
+    # vir do perfil-base "Energia Elétrica" via merge (ver CONTEXT.md,
+    # "Herança de setor"). TAEE3 fica de fora deste teste: ganhou beta
+    # PRÓPRIO (0.96, real, pesquisado) que sobrescreve o fallback
+    # setorial — ver test_campo_especifico_do_ticker_sobrescreve_o_do_setor_base
+    # e CONTEXT.md, "TAEE3 — dados reais para DDM+CAPM".
+    for ticker in ("CPLE3", "GEPA4"):
         perfil = obter_perfil(ticker)
         assert perfil.eh_regulado is True
         assert perfil.beta_referencia is not None
@@ -70,9 +73,12 @@ def test_herda_referencias_do_setor_base_energia_eletrica():
 
 def test_campo_especifico_do_ticker_sobrescreve_o_do_setor_base():
     # TAEE3 tem pct_divida_moeda_estrangeira PRÓPRIO (0.0) — não vem do
-    # setor base (que nem define esse campo).
+    # setor base (que nem define esse campo) — e também beta_referencia
+    # PRÓPRIO (0.96, real, pesquisado) que sobrescreve o fallback
+    # setorial genérico (0.65).
     taee3 = obter_perfil("TAEE3")
     assert taee3.pct_divida_moeda_estrangeira.valor == 0.0
+    assert taee3.beta_referencia.valor == 0.96
 
     beef3 = obter_perfil("BEEF3")
     assert beef3.pct_divida_moeda_estrangeira.valor == 0.90

@@ -34,6 +34,7 @@
     "TAEE3": {
       "setor": "Energia Elétrica",
       "subsetor": "Transmissão",
+      "eh_estatal": false,
       "pct_divida_moeda_estrangeira": {
         "valor": 0.0,
         "fonte": "manual",
@@ -41,13 +42,41 @@
         "data_atualizacao": "2026-07-22",
         "motivo_override": "Confirmado em valuation-tracker/valuation/wacc.py durante a validação do spread cambial: TAEE3 tem pct_divida_moeda_estrangeira=0.0 (dado real via CVM, sem exposição cambial na dívida). Ver CONTEXT.md, Fase 1."
       },
+      "beta_referencia": {
+        "valor": 0.96,
+        "fonte": "manual",
+        "confianca": "media",
+        "data_atualizacao": "2026-08-17",
+        "motivo_override": "Beta PRÓPRIO da TAEE3 (sobrescreve o fallback setorial de 0.65 herdado de '_setores_base.Energia Elétrica') — pesquisado via TradingView em 17/08/2026, base de cálculo 12 meses. Sobrescrita deliberada: dado específico do ticker é mais preciso que a referência genérica setorial pra este piloto de demonstração ponta a ponta (ver CONTEXT.md, 'TAEE3 — dados reais para DDM+CAPM'). confianca='media', não 'alta': fonte única com metodologia declarada, sem uma segunda fonte independente (ex: beta de 60 meses via Fundamentus) pra cruzar."
+      },
+      "dividendo_projetado": {
+        "valor": 0.99,
+        "fonte": "manual",
+        "confianca": "baixa",
+        "data_atualizacao": "2026-08-17",
+        "motivo_override": "Dividendo projetado 2026 por ação (D1 do Gordon Growth) — fontes de mercado divergem numa faixa de R$0,99 a R$1,16, dependendo do payout assumido sobre o lucro regulatório projetado. Escolhido o valor mais CONSERVADOR da faixa (R$0,99) deliberadamente: alimentando calcular_ddm(), um dividendo mais baixo produz um valor intrínseco mais baixo, reduzindo o risco de SUPERESTIMAR via DDM — mesma cautela de casos de incerteza já registrados no projeto (ex: RAZAO_MAX_MIN_52W_SUSPEITA/RVEE3: 'validado contra os casos disponíveis', não valor estatisticamente ótimo). confianca='baixa' reflete a divergência real entre fontes de mercado, não imprecisão de leitura de um número único."
+      },
+      "taxa_crescimento_perpetuidade_ddm": {
+        "valor": 0.035,
+        "fonte": "manual",
+        "confianca": "baixa",
+        "data_atualizacao": "2026-08-17",
+        "motivo_override": "Sem taxa de crescimento de longo prazo divulgada pela própria TAESA — estimada por raciocínio indireto, não medida diretamente: a RAP (Receita Anual Permitida) da TAEE3 é contratualmente reajustada por IPCA (concessões Categoria III corrigidas por IPCA, +5,32% no ciclo 2025-2026), então o crescimento REAL do dividendo na perpetuidade tende a ~0% além da inflação — g aproximado pela expectativa de IPCA de LONGO PRAZO (não a leitura de curto prazo, que é mais alta e transitória). Usado o IPCA de longo prazo do Boletim Focus (3,50% pra 2029, estável por 39 semanas seguidas, ancorado à meta de 3% do BCB), não os ~5,16% projetados pra 2026 — perpetuidade pede a taxa de regime permanente. confianca='baixa': é uma aproximação metodológica (RAP indexada a IPCA implica g≈IPCA de longo prazo), não um guidance da própria empresa."
+      },
+      "valor_mercado": {
+        "valor": 13070288532,
+        "fonte": "manual",
+        "confianca": "media",
+        "data_atualizacao": "2026-08-17",
+        "motivo_override": "Valor de mercado (R$) pesquisado em statusinvest.com.br/acoes/taee3 em 17/08/2026. Investidor10 reportou R$12.962.967.000 na mesma data — divergência pequena (~0,8%), provavelmente base de contagem de ações levemente diferente entre provedores; ambos os valores ficam na mesma faixa de size premium do CAPM (>R$10bi -> 1%), então a divergência não muda o resultado do cálculo. confianca='media', não 'alta', por não haver uma fonte primária única (ex: release trimestral da própria TAESA) confirmando o valor exato no momento da pesquisa."
+      },
       "tags": [
         {
           "tag": "ddm_only",
           "justificativa": "Transmissora de energia com RAP (Receita Anual Permitida) contratada e payout historicamente próximo de 100% do lucro regulatório — tag NOVA desta fase, sem precedente no valuation-tracker (não existe módulo de DDM lá). Ver CONTEXT.md, Fase 1."
         }
       ],
-      "notas": "Listada como candidata de prioridade não-alta a perfil 'concessao' em valuation-tracker/dados/perfil_dcf.json::_candidatos_auditados_pendentes, mas nunca parametrizada lá. A tag DDM_ONLY aqui é uma decisão independente disso, não uma migração."
+      "notas": "Listada como candidata de prioridade não-alta a perfil 'concessao' em valuation-tracker/dados/perfil_dcf.json::_candidatos_auditados_pendentes, mas nunca parametrizada lá. A tag DDM_ONLY aqui é uma decisão independente disso, não uma migração. eh_estatal=false (pesquisado em 17/08/2026, ri.taesa.com.br/estrutura-societaria-pitiguari): controle é COMPARTILHADO entre CEMIG (estatal mineira, 36,97% do capital votante) e ISA Brasil (privada, 26,03% do capital votante) via acordo de acionistas, 63% de participação votante conjunta — nenhuma das duas partes tem maioria isolada, e o mercado descreve a TAESA como empresa de controle privado/misto, não estatal. Ver CONTEXT.md, 'TAEE3 — dados reais para DDM+CAPM', pela decisão completa."
     },
 
     "CPLE3": {
