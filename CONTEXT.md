@@ -828,6 +828,101 @@ Nenhuma chamada de API, nenhum dado real, nenhum endpoint criado no
 backend, nenhuma decisão de design system/CSS framework, nenhum roteador
 — tudo isso é Fase 4+ ou tarefa própria futura.
 
+## CAPM (Ke) — função pura (concluída)
+
+Primeira peça da Fase 3 ("CAPM/WACC interno — portar, não reconstruir").
+Diferente do DDM (sem precedente no `valuation-tracker`), aqui existe
+fórmula real a portar — confirmada lendo `valuation-tracker/backend/
+valuation/capm.py` inteiro nesta sessão, não reconstituída de memória.
+
+### O que foi implementado e onde mora
+
+`backend/src/alicerce/capm/capm.py::calcular_capm(rf, beta,
+valor_mercado, eh_estatal) -> float` — função pura, mesmo padrão de
+`valuation/ddm.py`/`proveniencia/descontinuidade_preco.py`. `capm/` já
+estava reservado pra isso (`README.md`: *"Fase 3 — CAPM/WACC interno"*).
+Fórmula: `Ke = rf + beta×EQUITY_RISK_PREMIUM(5,5%) +
+COUNTRY_RISK_PREMIUM(2,5%) + size_premium(valor_mercado) +
+prêmio_estatal(2pp se eh_estatal)`, clampado em
+`[TAXA_DESCONTO_MINIMA(10%), TAXA_DESCONTO_MAXIMA(16%)]`.
+
+### Achado real confirmado na fonte (não presumido)
+
+`PREMIO_RISCO_MERCADO=0.03` existe como constante de módulo no
+`capm.py` antigo mas é **código morto** — o ERP de fato usado na
+fórmula é o literal inline `erp=0.055` (5,5%). Portamos o valor
+realmente usado (0.055), não a constante morta.
+
+### Decisão consciente de DIVERGIR do código-fonte (não é bug nem descuido)
+
+O `valuation-tracker` antigo tem `TAXA_DESCONTO_MINIMA`/`MAXIMA`
+(10%/16%) como constantes de módulo, mas **`calcular_capm()` de lá
+nunca aplica esse teto/piso** ao Ke retornado — confirmado lendo a
+função inteira (só o WACC, função separada, tem clamp de verdade lá:
+`max(0.08, min(wacc, 0.20))`). **Decisão explícita do usuário:
+aplicar o teto/piso de verdade no Alicerce**, mesmo divergindo do
+comportamento real da fonte, porque `docs/ROADMAP.md` do Alicerce já
+documenta essa intenção ("WACC com teto/piso — 16%/10% CAPM, 20%/8%
+WACC") e um Ke sem limite piora o bug conhecido do WIZC3 (abaixo).
+**Se uma sessão futura comparar com o `valuation-tracker` e achar isso
+uma discrepância acidental a "corrigir de volta" — não é. Está
+documentado aqui de propósito.**
+
+### Decisão de validação: sem guard individual pra rf/beta/valor_mercado
+
+Beta (ou `rf`) com valor extremo/negativo NÃO levanta exceção — só é
+absorvido pelo clamp final do Ke agregado. O `valuation-tracker` tem um
+guard específico de beta (substitui silenciosamente por 1.0 fora de
+`[-1, 4]`); não replicado aqui de propósito — seria uma substituição
+silenciosa de dado, contra o princípio do projeto. Beta negativo é
+matematicamente válido (mesmo espírito da decisão de permitir `g`
+negativo em `valuation/ddm.py`). `valor_mercado <= 0` usa o tier de
+fallback de 1,5% de size premium — mesmo comportamento da fonte,
+replicado fielmente (não é bug, é fallback deliberado de lá).
+
+**Atualização (sessão seguinte, antes do primeiro commit deste
+módulo)**: a decisão acima ("sem guard nenhum") foi refinada, não
+revertida. Distinção que faltava: valor PLAUSÍVEL-MAS-EXTREMO (ex: beta
+1.8 de um ticker genuinamente volátil, produzindo Ke > 16%) continua sem
+guard — o clamp de saída é o mecanismo certo pra isso, como já decidido
+acima. Mas faltava travar o outro caso, ERRO DE CHAMADA óbvio (ex:
+`rf=14.5` em vez de `rf=0.145`, ou beta fora de qualquer faixa que um
+ativo real do universo do Alicerce teria — os 3 betas de referência já
+cadastrados, 0,65/0,90/0,85, ficam bem longe dos limites), que hoje
+passava batido em silêncio e virava um Ke "válido" pelo clamp, mascarando
+o bug de quem chamou. `beta` fora de `[-3, 5]` (bordas inclusas) e `rf`
+negativo agora levantam `ValueError` — mesmo padrão de `valuation/ddm.py`
+— **antes** do clamp, que continua intocado pra tudo o mais.
+`valor_mercado` não ganhou guard nenhum — o fallback pra `<= 0` continua
+sendo o tratamento intencional, não um erro.
+
+### WACC — continua NÃO implementado, bug do WIZC3 NÃO resolvido
+
+Esta tarefa só implementa Ke (CAPM). WACC fica pra tarefa separada — o
+bug já documentado no `ROADMAP.md` (*"WACC nunca fica capado abaixo do
+Ke próprio — bug do WIZC3"*) precisa de tratamento próprio (o clamp do
+WACC no `valuation-tracker`, `[8%, 20%]`, é uma faixa fixa independente
+do Ke calculado pro ticker — nada impede WACC < Ke específico). O Ke
+agora ter teto/piso **mitiga parcialmente** (reduz o range de Ke
+possível), mas **não resolve** o bug — isso exige o WACC em si saber o
+Ke do ticker ao aplicar seu próprio clamp, o que só a implementação do
+WACC (não feita aqui) pode garantir.
+
+### Testes (13 no total em `test_capm.py`, sem mocks)
+
+`backend/tests/unit/test_capm.py`: caso normal dentro da faixa, caso
+que estouraria acima de 16% sem o clamp (confirma teto exato), caso
+que ficaria abaixo de 10% sem o clamp (confirma piso exato, com beta
+negativo), `eh_estatal` True vs. False confirmando os 2pp exatos (sem
+clamp interferir), bordas exatas no teto e no piso, `valor_mercado<=0`
+usando o tier de fallback (7 originais) — mais, da atualização de
+guard acima: `beta` abaixo/acima da faixa plausível levanta erro, `beta`
+exatamente na borda (`-3`/`5`) não levanta, `rf` negativo levanta,
+`rf=0.0` não levanta, e um teste que repete o caso normal pra travar
+explicitamente que a trava nova não regrediu o comportamento de clamp
+pra valores plausíveis (6 novos). **89 testes passando no total** (83
+anteriores + 6 novos).
+
 ## Convenções ao pedir mudanças pro Claude Code
 
 - Caminho de arquivo exato + número de linha quando for correção pontual.
