@@ -1402,6 +1402,103 @@ implícito); os 6 pilotos reais não bloqueados (parametrizado);
 desconhecido → `TickerSemPerfilError`. **117 testes passando no total**
 (106 anteriores + 11 novos).
 
+## Perfil financeiro/seguradora (concluído — só classificação, decisão (a))
+
+Terceiro dos 4 perfis de `RegraPerfil` já registrados no `ROADMAP.md`
+(auditoria do valuation-tracker). Caso real: WIZC3 (Wiz Co, corretora de
+seguros) — setor mal classificado rodava DCF/EV-EBITDA/Graham numa
+empresa financeira, produzindo score inflado (8,2); corrigido lá
+marcando esses métodos "Não aplicável" pra esse perfil (Bazin,
+dividend-based, continuou válido).
+
+### Nenhum campo novo — investigação encontrou `taxonomia_financeira_especial` já existente
+
+Antes de criar qualquer campo, investigado se `PerfilSetor` já tinha
+algo reaproveitável. Encontrado: `taxonomia_financeira_especial: bool`
+já existe desde a Fase 1 (`perfil_setor.py`), com a docstring "Bancos/
+seguradoras/holdings financeiras: EBIT/EBITDA/FCF não são conceitos
+limpos pro negócio" — exatamente o conceito pedido nesta tarefa. Já
+estava populado corretamente pros 6 pilotos (confirmado, não assumido):
+`WIZC3=True`, `ITSA4=True` (holding financeira — mesma razão de
+"EBIT/EBITDA/FCF não limpos" que seguradoras, mesmo campo cobre os dois
+casos de propósito, ver docstring original), os outros 4
+(`TAEE3`/`CPLE3`/`GEPA4`/`BEEF3`) `False`. Nenhuma edição em
+`perfis_ticker.json` foi necessária.
+
+**Nota**: o `ROADMAP.md` (pseudocódigo da Fase 1) lista `"holding":
+RegraHolding()` e `"seguros": RegraSeguros()` como duas REGRAS
+separadas no design geral — isso é sobre qual AJUSTE cada uma dispara
+(holding → SOTP via `TagPerfilEconomico.SOTP_OBRIGATORIO`, já
+implementado; financeiro/seguradora → bloqueio de método, este item),
+não uma contradição com reaproveitar o mesmo campo booleano de
+classificação pra ambos — os dois perfis COMPARTILHAM o mesmo problema
+contábil de origem (EBIT/EBITDA/FCF sujos), só divergem no que fazer a
+respeito depois.
+
+### A decisão central desta tarefa: (a) ou (b)?
+
+**Escolhida: (a) — só classificação, SEM função de bloqueio.**
+
+Raciocínio completo: os 2 perfis anteriores (insolvência, classe de
+ativo) são bloqueios UNIVERSAIS — se `True`, bloqueiam tudo,
+independente de método. Este é estruturalmente diferente: no
+valuation-tracker o bloqueio do WIZC3 era POR MÉTODO (DCF/EV-EBITDA/
+Graham bloqueados; Bazin, dividend-based, continuou liberado). O
+Alicerce hoje só tem UM método implementado: `calcular_ddm()`
+(dividend-based). DDM é conceitualmente parente de Bazin, não de
+DCF/Graham/EV-EBITDA — o método que causou o problema real no WIZC3
+nem existe no Alicerce ainda. Mais que isso: na prática de valuation,
+DDM (ou variantes como o Excess Return Model) costuma ser considerado o
+método MAIS apropriado pra bancos/seguradoras, não menos — FCF pra uma
+instituição financeira não é um conceito limpo (juros/prêmios
+recebidos e pagos se misturam com atividade de financiamento), enquanto
+dividendo pago é diretamente observável. Implementar uma função de
+bloqueio agora seria travar um método que, pelo caso real que motivou
+este perfil (WIZC3), não é o problema — seria inventar uma restrição
+sem o método realmente problemático (DCF/Graham/EV-EBITDA) existir pra
+justificá-la.
+
+**Confirmado de forma EXECUTÁVEL, não só documentado**:
+`test_financeiro.py::test_ddm_nao_e_bloqueado_por_perfil_financeiro`
+constrói um `PerfilSetor` sintético com `taxonomia_financeira_especial=
+True` E tag `DDM_ONLY`, e confirma que
+`pipeline/ddm_only.py::calcular_valor_ddm_only()` calcula normalmente
+(`status=CALCULADO`), sem nenhum bloqueio — a decisão (a) não é só uma
+frase no CONTEXT.md, é um comportamento testado.
+
+**Quando isso deveria ser revisitado**: se/quando DCF, Graham, ou
+EV-EBITDA forem implementados no Alicerce, aí sim faz sentido
+implementar uma função de bloqueio-por-método pra perfil financeiro/
+seguradora (ex: `metodo_bloqueado_por_perfil_financeiro(ticker, metodo)
+-> bool`) — não antes.
+
+### Função implementada
+
+`perfis/financeiro.py::ticker_e_perfil_financeiro(ticker: str) -> bool`
+— leitura direta de `PerfilSetor.taxonomia_financeira_especial`. Levanta
+`TickerSemPerfilError` pra ticker desconhecido. Função pura, sem
+hardcode de ticker, sem integração com `pipeline/` ou com os outros 2
+perfis ainda (mesma pendência já registrada pros anteriores).
+
+### Tickers-piloto classificados
+
+| Ticker | `taxonomia_financeira_especial` | Motivo |
+|---|---|---|
+| TAEE3 | `false` | Energia elétrica, transmissão — não financeiro |
+| CPLE3 | `false` | Energia elétrica, distribuição/geração — não financeiro |
+| GEPA4 | `false` | Energia elétrica, geração — não financeiro |
+| ITSA4 | `true` | Holding financeira — maior ativo é participação num banco (já classificado na Fase 1) |
+| BEEF3 | `false` | Alimentos/frigorífico — não financeiro |
+| WIZC3 | `true` | Corretora de seguros — caso real de referência deste perfil (já classificado na Fase 1) |
+
+### Testes (8 novos, `tests/unit/test_financeiro.py`)
+
+Os 6 pilotos classificados corretamente (parametrizado, dado já
+existente confirmado); ticker desconhecido → `TickerSemPerfilError`;
+teste dedicado confirmando que DDM NÃO é bloqueado por perfil financeiro
+(cenário sintético via `monkeypatch`, ver decisão (a) acima). **125
+testes passando no total** (117 anteriores + 8 novos).
+
 ## Convenções ao pedir mudanças pro Claude Code
 
 - Caminho de arquivo exato + número de linha quando for correção pontual.

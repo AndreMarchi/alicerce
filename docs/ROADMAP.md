@@ -144,9 +144,24 @@ REGRAS: dict[str, RegraPerfil] = {
      de detectar (padrão de ticker/tipo de ativo já costuma vir
      identificado na fonte de dado — mas nunca o SUFIXO do ticker em si,
      ver armadilha acima).
-  3. **Financeiro/seguradora**. Caso real: WIZC3 — o caso que motivou
-     toda a consolidação de `PerfilSetor` no `valuation-tracker`: setor
-     mal classificado rodava DCF/EV-EBITDA/Graham numa corretora de
+  3. **Financeiro/seguradora**. **STATUS: classificação implementada,
+     SEM bloqueio ativo hoje — decisão deliberada, não lacuna** (ver
+     CONTEXT.md, "Perfil financeiro/seguradora", pelo raciocínio
+     completo). Reaproveita `PerfilSetor.taxonomia_financeira_especial`
+     (já existente desde a Fase 1, nenhum campo novo) +
+     `perfis/financeiro.py::ticker_e_perfil_financeiro()`. Diferente dos
+     itens 1 e 2 acima (bloqueios universais), o problema real do WIZC3
+     era POR MÉTODO (DCF/EV-EBITDA/Graham bloqueados, Bazin liberado) —
+     e o único método que o Alicerce tem hoje, DDM, é dividend-based
+     como o Bazin, não parente do que causou o problema. Bloquear DDM
+     agora seria antecipar uma restrição sem o método realmente
+     problemático existir pra justificá-la; revisitar quando DCF/Graham/
+     EV-EBITDA forem implementados. Confirmado via teste executável
+     (`test_ddm_nao_e_bloqueado_por_perfil_financeiro`) que DDM calcula
+     normalmente pra um ticker financeiro sintético, não só documentado
+     em comentário. Caso real: WIZC3 — o caso que motivou toda a
+     consolidação de `PerfilSetor` no `valuation-tracker`: setor mal
+     classificado rodava DCF/EV-EBITDA/Graham numa corretora de
      seguros, score 8,2 ("Muito Atrativa/Alta Convicção"); depois da
      correção (métodos marcados "Não aplicável" pra esse perfil), caiu
      pra 5,8 ("Neutra"). Já existe precedente resolvido no projeto
