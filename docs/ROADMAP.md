@@ -168,15 +168,32 @@ REGRAS: dict[str, RegraPerfil] = {
      irmão — a lógica de decisão (quais métodos não se aplicam a perfil
      financeiro) pode ser reaproveitada como referência de design, mesmo
      que os números/calibração sejam recalculados do zero no Alicerce.
-  4. **Patrimonial/imóveis** (menor prioridade, mais difícil). Caso
-     real: HBRE3 (HBR Realty) — o próprio `valuation-tracker` documenta
-     isso como pendência não resolvida: fica em perfil genérico
-     (fallback), sem calibração própria, com uma pergunta de modelagem
-     em aberto (P/VP/NAV deveria ter peso maior que P/L pra esse
-     perfil). Diferente dos outros 3 ("não aplicar método X"), esse caso
-     exige desenhar uma abordagem de valuation nova (baseada em
-     patrimônio, não em lucro) — possivelmente um método que nem existe
-     ainda no Alicerce, não só roteamento de `PerfilSetor`.
+  4. **Patrimonial/imóveis** (menor prioridade, mais difícil). **STATUS:
+     DUAS sub-partes, só a primeira concluída** (ver CONTEXT.md, "Perfil
+     patrimonial/imóveis", pelo detalhe completo):
+     - **(i) Classificação — CONCLUÍDA.** `PerfilSetor.perfil_patrimonial`
+       (bool, campo novo — investigado antes, nada reaproveitável
+       existia) + `perfis/patrimonial.py::ticker_e_perfil_patrimonial()`.
+       Nenhum dos 6 tickers-piloto é patrimonial (confirmado
+       individualmente, não assumido).
+     - **(ii) Método de valuation apropriado — NÃO FEITA, decisão de
+       MODELAGEM FINANCEIRA adiada, não escopo de engenharia de
+       rotina.** Diferente dos outros 3 perfis (que só decidiram
+       bloquear ou não um método JÁ EXISTENTE), este exige desenhar um
+       método NOVO (baseado em patrimônio, P/VP/NAV, não em lucro) que
+       não existe no Alicerce hoje — fórmula, campo de dado com
+       proveniência, possivelmente fonte de dado nova (reavaliação de
+       ativos a mercado). Pergunta original do valuation-tracker (P/VP/
+       NAV deveria pesar mais que P/L?) agora ESPECIFICADA em detalhe no
+       CONTEXT.md (por que P/L quebra pra esse perfil, o que NAV/P/VP
+       tentariam capturar, os problemas próprios que NAV traria) — não
+       só repetida vagamente. Caso real: HBRE3 (HBR Realty) — o próprio
+       `valuation-tracker` documenta isso como pendência não resolvida:
+       fica em perfil genérico (fallback), sem calibração própria.
+       Diferente dos outros 3 ("não aplicar método X"), esse caso exige
+       desenhar uma abordagem de valuation nova (baseada em patrimônio,
+       não em lucro) — possivelmente um método que nem existe ainda no
+       Alicerce, não só roteamento de `PerfilSetor`.
 
   **Isso não desbloqueia nem antecipa a implementação de `RegraPerfil`**
   — a decisão de adiar continua valendo até existir mais de um método

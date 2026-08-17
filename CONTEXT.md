@@ -1499,6 +1499,127 @@ teste dedicado confirmando que DDM NÃO é bloqueado por perfil financeiro
 (cenário sintético via `monkeypatch`, ver decisão (a) acima). **125
 testes passando no total** (117 anteriores + 8 novos).
 
+## Perfil patrimonial/imóveis (concluído — só classificação; método de valuation continua decisão aberta)
+
+Quarto e último dos 4 perfis de `RegraPerfil` já registrados no
+`ROADMAP.md` (auditoria do valuation-tracker). Caso real de referência:
+HBRE3 (HBR Realty) — **não é um dos 6 tickers-piloto do Alicerce**, só o
+caso documentado no valuation-tracker como pendência nunca resolvida lá
+(fica em perfil genérico/fallback, sem calibração própria).
+
+### Diferença fundamental frente aos 3 perfis anteriores
+
+Insolvência, classe de ativo e financeiro foram resolvidos com
+classificação + uma decisão sobre bloquear (ou não) um MÉTODO QUE JÁ
+EXISTE (DDM). Este é estruturalmente diferente: a pergunta de fundo é
+sobre qual método de valuation CABERIA pra empresa patrimonial, e esse
+método não existe no Alicerce hoje — nem P/VP, nem NAV, nem nenhuma
+variante. Implementar um método novo do zero é decisão de modelagem
+financeira real, escopo muito maior que os 3 perfis anteriores — **não
+foi feito nesta tarefa**, só a classificação.
+
+### Campo novo: `PerfilSetor.perfil_patrimonial`
+
+Investigado antes de criar (mesmo processo que confirmou reaproveitar
+`taxonomia_financeira_especial` na tarefa anterior): nenhum campo
+existente em `PerfilSetor`/`tags.py` cobria isso — criado
+`perfil_patrimonial: bool = False`, mesmo padrão simples dos outros
+campos de classificação (não `CampoComProveniencia`, não é dado
+numérico). Carregado em `motor.py::_carregar_perfis`.
+
+### Tickers-piloto confirmados (nenhum é patrimonial — verificado, não assumido)
+
+| Ticker | Setor | `perfil_patrimonial` |
+|---|---|---|
+| TAEE3 | Energia Elétrica (transmissão) | `false` |
+| CPLE3 | Energia Elétrica (distribuição/geração) | `false` |
+| GEPA4 | Energia Elétrica (geração) | `false` |
+| ITSA4 | Holding (participações diversificadas — bancos, varejo, saneamento etc., não imóveis) | `false` |
+| BEEF3 | Alimentos/frigorífico | `false` |
+| WIZC3 | Previdência e Seguros (corretora) | `false` |
+
+### Função implementada
+
+`perfis/patrimonial.py::ticker_e_perfil_patrimonial(ticker: str) ->
+bool` — leitura direta de `PerfilSetor.perfil_patrimonial`. Levanta
+`TickerSemPerfilError` pra ticker desconhecido. Sem função de bloqueio
+nem de cálculo — só classificação, mesmo escopo desta tarefa.
+
+### DECISÃO DE MODELAGEM PENDENTE — P/VP/NAV vs. P/L, especificada pra retomada futura
+
+**Não decidida nesta tarefa, de propósito.** Formalizada aqui como item
+de decisão explícito, não como "pergunta em aberto" vaga (que é como o
+`valuation-tracker` deixou, sem nunca resolver):
+
+**O problema**: métodos baseados em LUCRO (P/L, e por extensão DDM —
+que depende de dividendo, que depende de lucro distribuível) presumem
+que o lucro contábil corrente é um proxy razoável da geração de valor
+do negócio. Pra uma empresa patrimonial (ex: HBRE3, imóveis), essa
+premissa quebra de um jeito ESPECÍFICO: o valor real do negócio vem
+majoritariamente da VARIAÇÃO DE VALOR DO PATRIMÔNIO (imóveis
+valorizando/desvalorizando), não da operação corrente (aluguéis,
+receita operacional). Uma empresa patrimonial pode ter lucro contábil
+baixo (ou até negativo, dependendo de como a variação de valor é
+contabilizada) num ano em que o valor real do patrimônio subiu
+substancialmente — e vice-versa. P/L nesse cenário mede a coisa errada.
+
+**O que P/VP/NAV tentaria capturar em vez disso**: Valor Patrimonial
+por Ação (P/VP) e Net Asset Value (NAV) comparam o preço de mercado
+direto contra o valor do PATRIMÔNIO (ativos - passivos), não contra o
+lucro — mais alinhado com onde o valor de uma empresa patrimonial
+realmente mora. Mas isso traz problemas próprios que também não foram
+resolvidos aqui, só identificados como parte do escopo da decisão
+futura: o valor contábil dos ativos (custo histórico, possivelmente
+desatualizado) pode divergir do valor de mercado real dos imóveis —
+NAV "de verdade" exigiria reavaliação de ativos a mercado, não só ler o
+balanço, o que é um problema de FONTE DE DADO (proveniência, Fase 0),
+não só de fórmula.
+
+**Por que isso não é uma extensão de rotina do padrão dos outros 3
+perfis**: os 3 perfis anteriores reaproveitaram/adaptaram infraestrutura
+já existente (campo booleano, função pura de leitura). Implementar
+P/VP/NAV exigiria: (1) decidir a fórmula exata e suas premissas
+(P/VP puro? NAV com reavaliação? qual desconto/prêmio aplicar sobre NAV,
+se algum?); (2) um campo novo de dado (valor patrimonial por ação, ou
+os componentes pra calculá-lo) com proveniência completa (Fase 0); (3)
+possivelmente uma fonte de dado nova (reavaliação de ativos a mercado
+não é algo que CVM/fundamentus/brapi/yfinance normalmente fornecem
+pronto). Isso é decisão de modelagem financeira ponta a ponta, não uma
+função pura de 5 linhas como os perfis anteriores.
+
+**Nota lateral, não implementada como bloqueio**: DDM provavelmente não
+se aplica bem a empresas patrimoniais — política de dividendo de
+empresas do tipo tende a ser menos previsível/consistente que a de
+utilities reguladas como TAEE3 (RAP contratada, payout ~100%
+historicamente). Isso é só uma OBSERVAÇÃO a registrar aqui, não uma
+restrição implementada — mesmo espírito da decisão (a) do perfil
+financeiro (CONTEXT.md, "Perfil financeiro/seguradora"): não inventar
+bloqueio sem o método que ele restringiria (ou o caso real que o
+motivaria) existir de fato pra testar contra.
+
+**Quando retomar**: essa decisão merece sessão própria, com foco em
+modelagem financeira (não engenharia de rotina) — decidir a fórmula,
+investigar fonte de dado de valor patrimonial/NAV real, e só depois
+disso considerar se DDM deveria ou não ser restrito pra esse perfil.
+
+### Testes (8 novos, `tests/unit/test_patrimonial.py`)
+
+Os 6 pilotos reais → `False` (parametrizado, confirmado); ticker
+patrimonial sintético (`HBRE3`, via `PerfilSetor` construído à mão —
+não é ticker cadastrado no Alicerce) → `True`; ticker desconhecido →
+`TickerSemPerfilError`. Nenhum teste de bloqueio ou cálculo — não existe
+função pra isso nesta tarefa. **133 testes passando no total** (125
+anteriores + 8 novos).
+
+### Os 4 perfis da fila original — todos com classificação implementada agora
+
+Insolvência (concluído), classe de ativo/fundos (concluído), financeiro/
+seguradora (concluído, sem bloqueio — decisão (a)), patrimonial/imóveis
+(concluído, classificação só — método de valuation é decisão pendente
+separada, ver acima). Nenhum dos 4 está integrado com `pipeline/` nem
+entre si — mesma pendência já registrada em cada um, composição real
+fica pra quando `RegraPerfil` for retomado.
+
 ## Convenções ao pedir mudanças pro Claude Code
 
 - Caminho de arquivo exato + número de linha quando for correção pontual.

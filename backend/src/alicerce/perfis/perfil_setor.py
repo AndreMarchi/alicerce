@@ -45,6 +45,20 @@ class PerfilSetor:
     # conceitos limpos pro negócio (mesma razão documentada em
     # valuation-tracker/valuation/perfil_setor.py pra bancos/seguradoras).
     taxonomia_financeira_especial: bool = False
+    # Perfil patrimonial/imóveis — quarto e último dos 4 perfis de
+    # RegraPerfil do docs/ROADMAP.md (auditoria do valuation-tracker;
+    # caso real: HBRE3, não um dos 6 pilotos do Alicerce). Bool simples,
+    # mesmo padrão dos campos de classificação acima — SÓ identifica o
+    # perfil, não decide nem bloqueia nada. Investigado antes de criar
+    # (mesmo processo que confirmou reaproveitar
+    # `taxonomia_financeira_especial` pro perfil financeiro): nenhum
+    # campo existente cobria isso, criado novo. NÃO existe função de
+    # cálculo nem de bloqueio associada — a pergunta de qual método de
+    # valuation caberia pra esse perfil (P/VP/NAV vs. P/L) é decisão de
+    # modelagem financeira EM ABERTO, deliberadamente não respondida
+    # aqui — ver CONTEXT.md, "Perfil patrimonial/imóveis", pela
+    # especificação completa da pergunta.
+    perfil_patrimonial: bool = False
     # Controle estatal (governo, direto ou golden share), consumido
     # diretamente por capm.calcular_capm(eh_estatal=...) — bool simples
     # como os demais campos de classificação acima, não

@@ -77,6 +77,7 @@ def _carregar_perfis() -> dict[str, PerfilSetor]:
             eh_regulado=dados.get("eh_regulado", False),
             eh_ciclico=dados.get("eh_ciclico", False),
             taxonomia_financeira_especial=dados.get("taxonomia_financeira_especial", False),
+            perfil_patrimonial=dados.get("perfil_patrimonial", False),
             eh_estatal=dados.get("eh_estatal", False),
             em_recuperacao_judicial=dados.get("em_recuperacao_judicial", False),
             classe_ativo=dados.get("classe_ativo"),
