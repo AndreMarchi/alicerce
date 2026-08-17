@@ -1284,6 +1284,120 @@ default `False` da dataclass; ticker desconhecido → `TickerSemPerfilError`
 explícito, não `False` silencioso. **106 testes passando no total**
 (97 anteriores + 9 novos).
 
+## Perfil de classe de ativo incompatível — fundos (concluído, só detecção)
+
+Segundo dos 4 perfis de `RegraPerfil` já registrados no ROADMAP
+(auditoria do valuation-tracker, commit `0f66774`). Caso real de
+referência: RZAG11 (FIAGRO — fundo de crédito do agronegócio). Fundos
+não são empresas: distribuem quase toda a renda por lei, sem
+"lucro"/"crescimento" no sentido que DDM/DCF/Graham assumem — rodar
+esses métodos num fundo produz número sem sentido.
+
+### Decisão de nomenclatura — mesma investigação de antes, mesma conclusão por raciocínio equivalente
+
+1. **`RegraPerfil`?** Não, mesmo raciocínio do perfil de insolvência
+   (ver seção acima): é outro pré-filtro binário, sem "método" a
+   escolher, não uma das `N` regras compostas que o `Protocol` (ainda
+   pseudocódigo) existe pra resolver.
+2. **Local**: `perfis/classe_ativo.py` — mesmo pacote de
+   `perfis/insolvencia.py` (classificação), não `pipeline/`
+   (orquestração de cálculo, onde `ddm_only.py` mora), pelo mesmo
+   motivo: só lê um campo de `PerfilSetor`, não orquestra nada.
+
+### Campo novo: `PerfilSetor.classe_ativo`
+
+Nenhum campo de classe de ativo/tipo de instrumento existia antes desta
+tarefa (confirmado por investigação, não assumido). Adicionado:
+`classe_ativo: Optional[ClasseAtivo] = None`, onde `ClasseAtivo =
+Literal["acao", "unit", "fiagro", "fii"]` (`perfil_setor.py`).
+
+**Diferente de `eh_estatal`/`em_recuperacao_judicial`: SEM default
+seguro.** Aqueles têm `False` porque o valor já foi verificado pra
+todos os 6 pilotos (nenhum é estatal isolado, nenhum está em RJ) —
+`False` reflete dado confirmado, não "não investiguei ainda".
+`classe_ativo` não tem esse luxo: um ticker novo cadastrado sem esse
+campo não deveria silenciosamente virar "compatível" (ação). Por isso
+`None` (não `"acao"`) é o default, e
+`classe_ativo.py::ticker_bloqueado_por_classe_ativo_incompativel()`
+levanta `ClasseAtivoNaoClassificadaError` explicitamente nesse caso —
+mesmo raciocínio de "ausência não é seguro" já usado no perfil de
+insolvência, aplicado de forma ainda mais direta aqui.
+
+### ARMADILHA REAL — não inferir classe de ativo pelo sufixo do ticker (achado de design, vale registrar)
+
+`TAEE11` é uma UNIT (bundle TAEE3+TAEE4) da TAESA — uma empresa real,
+**não** um fundo, apesar do sufixo "11" que FIAGROs/FIIs também usam.
+Terminar em "11" é necessário mas NÃO suficiente pra ser FIAGRO/FII.
+Uma heurística de detecção por sufixo de ticker classificaria TAEE11
+incorretamente como fundo — exatamente o tipo de regra "genérica
+demais" que motivou registrar este perfil em primeiro lugar. Por isso
+`classe_ativo` é SEMPRE um campo explícito por ticker, nunca inferido
+de string.
+
+**Nota sobre a premissa do prompt desta tarefa**: o prompt afirmava que
+"TAEE11 já está no universo de dados do Alicerce" — verificado via
+`grep -rn "TAEE11"` no repositório inteiro antes de implementar
+qualquer coisa, e essa afirmação **não procede**: só `TAEE3` (a ação
+ON) está cadastrado nos 6 pilotos; `TAEE11` (a unit) nunca foi
+adicionado ao `perfis_ticker.json`. O teste explícito da armadilha
+(`test_armadilha_taee11_unit_nao_e_bloqueada`) usa um `PerfilSetor`
+construído à mão via `monkeypatch`, mesmo padrão já usado em
+`test_insolvencia.py` pra casos sintéticos — não um ticker real
+cadastrado.
+
+**Outros tickers do universo dos 6 pilotos com o mesmo risco,
+pesquisados nesta tarefa (não só o TAEE11, conforme pedido)**:
+
+| Ticker "11" | Empresa (mesma dos 6 pilotos) | É fundo? | Observação |
+|---|---|---|---|
+| TAEE11 | Taesa (par de TAEE3) | Não — unit | Bundle TAEE3(ON)+TAEE4(PN) |
+| CPLE11 | Copel (par de CPLE3) | Não — unit | Bundle CPLE3(ON)+4×CPLE6(PN classe B); há proposta de desmembramento em ações individuais, ainda não efetivada na data da pesquisa |
+| ITSA11 | Itaúsa (par de ITSA4) | Não — unit | Bundle ITSA3(ON)+ITSA4(PN) |
+| BEEF11 | Minerva (par de BEEF3) | Não — unit | Bundle, confirmado negociado na B3 |
+| GEPA11 | Rio Paranapanema (par de GEPA4) | **Não é nem unit nem fundo** | É uma DEBÊNTURE (título de dívida, 09/2013) — achado extra: sufixo "11" pode ser ainda mais ambíguo do que só "unit vs. fundo", reforça ainda mais por que inferência por sufixo é uma ideia ruim |
+| WIZC11 | Wiz Co (par de WIZC3) | — | Não existe — Wiz Co só tem WIZC3 (ação ordinária), sem unit |
+
+Nenhum desses tickers "11" está cadastrado no Alicerce hoje — só
+documentados aqui como achado de investigação, pra não serem
+redescobertos do zero numa sessão futura que precise popular algum
+deles.
+
+### Classe de ativo dos 6 pilotos (todos `"acao"`, confirmado, nenhum fundo)
+
+| Ticker | `classe_ativo` | Fonte |
+|---|---|---|
+| TAEE3 | `acao` | Ação ON da TAESA — não confundir com a unit TAEE11 (ver armadilha acima) |
+| CPLE3 | `acao` | Ação ON da Copel, único tipo negociado desde a migração ao Novo Mercado |
+| GEPA4 | `acao` | Ação PN da Rio Paranapanema (par ON é GEPA3) |
+| ITSA4 | `acao` | Ação PN da Itaúsa (par ON é ITSA3) — holding, mas empresa real com ação negociada, não fundo |
+| BEEF3 | `acao` | Ação ON da Minerva |
+| WIZC3 | `acao` | Ação ON da Wiz Co |
+
+### Função implementada
+
+`perfis/classe_ativo.py::ticker_bloqueado_por_classe_ativo_incompativel(ticker:
+str) -> bool` — `True` se `classe_ativo` for `"fiagro"`/`"fii"`,
+`False` se `"acao"`/`"unit"`. Levanta `TickerSemPerfilError` (ticker
+desconhecido) ou `ClasseAtivoNaoClassificadaError` (`classe_ativo`
+ausente). Função pura, sem hardcode de ticker.
+
+### Pendência explícita — integração com pipeline/insolvência NÃO decidida aqui
+
+Mesma pendência já registrada pro perfil de insolvência: este portão
+não foi integrado com `pipeline/ddm_only.py` nem com
+`perfis/insolvencia.py`. Como compor múltiplos pré-filtros + escolha de
+método é decisão de design que fica pra quando `RegraPerfil` for
+retomado de verdade.
+
+### Testes (11 novos, `tests/unit/test_classe_ativo.py`)
+
+FIAGRO bloqueado; FII bloqueado; **`TAEE11` com `classe_ativo="unit"`
+explicitamente NÃO bloqueado** (teste dedicado da armadilha, não
+implícito); os 6 pilotos reais não bloqueados (parametrizado);
+`classe_ativo` ausente → `ClasseAtivoNaoClassificadaError`; ticker
+desconhecido → `TickerSemPerfilError`. **117 testes passando no total**
+(106 anteriores + 11 novos).
+
 ## Convenções ao pedir mudanças pro Claude Code
 
 - Caminho de arquivo exato + número de linha quando for correção pontual.

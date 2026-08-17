@@ -116,17 +116,34 @@ REGRAS: dict[str, RegraPerfil] = {
      um portão binário (isso não deveria aparecer como recomendação de
      compra, independente do score calculado). Mais simples de
      implementar que os outros 3, e o de maior risco se não existir.
-  2. **Fundo/classe de ativo incompatível**. Caso real: RZAG11 (FIAGRO
-     — fundo de crédito do agronegócio), mais 2 outros tickers
-     terminados em "11" identificados na mesma auditoria (provavelmente
-     FIIs). Sem tratamento especial, o `valuation-tracker` roda
-     DCF/Graham/Bazin (métodos desenhados pra empresa com lucro/
-     crescimento) num fundo que distribui quase toda a renda como
-     dividendo por lei e não tem "crescimento" no sentido que esses
-     métodos assumem. Erro mais grave estruturalmente (classe de ativo
-     inteira incompatível, não só setor mal calibrado), mas barato de
-     detectar (padrão de ticker/tipo de ativo já costuma vir
-     identificado na fonte de dado).
+  2. **Fundo/classe de ativo incompatível**. **STATUS: detecção
+     implementada, integração com pipeline PENDENTE** (mesmo padrão do
+     item 1 acima; ver CONTEXT.md, "Perfil de classe de ativo
+     incompatível — fundos"): `PerfilSetor.classe_ativo` (`Optional[
+     Literal["acao", "unit", "fiagro", "fii"]]`, SEM default seguro —
+     `None` levanta erro explícito, nunca vira "acao" por padrão) +
+     `perfis/classe_ativo.py::ticker_bloqueado_por_classe_ativo_incompativel()`,
+     função pura sem hardcode de ticker nem inferência por sufixo de
+     string. **Achado real de design confirmado nesta implementação**:
+     detectar fundo só pelo sufixo "11" do ticker classificaria errado
+     — `TAEE11` (unit da TAESA, empresa real) termina em "11" mas não é
+     fundo; o mesmo vale pra `CPLE11`, `ITSA11`, `BEEF11` (units de
+     outros 3 dos 6 tickers-piloto do Alicerce, todos pesquisados e
+     confirmados como units reais, não fundos) — `GEPA11` é ainda mais
+     enganoso, é uma DEBÊNTURE (título de dívida), nem unit nem fundo.
+     Por isso `classe_ativo` é sempre campo explícito por ticker, nunca
+     inferido de padrão de string (ver CONTEXT.md pela tabela completa).
+     Caso real: RZAG11 (FIAGRO — fundo de crédito do agronegócio), mais
+     2 outros tickers terminados em "11" identificados na mesma
+     auditoria (provavelmente FIIs). Sem tratamento especial, o
+     `valuation-tracker` roda DCF/Graham/Bazin (métodos desenhados pra
+     empresa com lucro/crescimento) num fundo que distribui quase toda a
+     renda como dividendo por lei e não tem "crescimento" no sentido que
+     esses métodos assumem. Erro mais grave estruturalmente (classe de
+     ativo inteira incompatível, não só setor mal calibrado), mas barato
+     de detectar (padrão de ticker/tipo de ativo já costuma vir
+     identificado na fonte de dado — mas nunca o SUFIXO do ticker em si,
+     ver armadilha acima).
   3. **Financeiro/seguradora**. Caso real: WIZC3 — o caso que motivou
      toda a consolidação de `PerfilSetor` no `valuation-tracker`: setor
      mal classificado rodava DCF/EV-EBITDA/Graham numa corretora de

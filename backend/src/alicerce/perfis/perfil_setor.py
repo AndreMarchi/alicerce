@@ -12,9 +12,16 @@ CONTEXT.md), não como um conceito do schema em si.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Literal, Optional
 
 from alicerce.proveniencia.schema import CampoComProveniencia
+
+# Classe de instrumento negociado — não confundir com `setor`/`subsetor`
+# (economia do negócio). "acao"/"unit" representam uma empresa real
+# (ação ordinária/preferencial ou bundle ON+PN); "fiagro"/"fii" são
+# fundos, sem "lucro"/"crescimento" no sentido que DDM/DCF/Graham
+# assumem — ver `perfis/classe_ativo.py`.
+ClasseAtivo = Literal["acao", "unit", "fiagro", "fii"]
 
 
 @dataclass
@@ -72,6 +79,19 @@ class PerfilSetor:
     # então o default `False` reflete dado verificado, não um "não
     # investiguei ainda" disfarçado.
     em_recuperacao_judicial: bool = False
+
+    # Classe de ativo real do ticker — `Optional[ClasseAtivo]`, SEM
+    # default seguro de propósito (diferente de `eh_estatal`/
+    # `em_recuperacao_judicial` acima, cujo `False` reflete dado já
+    # verificado pra todos os pilotos). Aqui `None` significa "não
+    # classificado", e `perfis/classe_ativo.py` levanta erro explícito
+    # nesse caso — nunca assume "compatível" (ação) por ausência de
+    # dado, mesmo raciocínio de "ausência não é 'seguro'" já aplicado ao
+    # portão de insolvência. NUNCA inferir isso do sufixo do ticker (ver
+    # armadilha documentada em `perfis/classe_ativo.py`: `TAEE11` é uma
+    # unit de uma empresa real, TAESA — não um fundo, apesar do sufixo
+    # "11" que FIAGROs/FIIs também usam).
+    classe_ativo: Optional[ClasseAtivo] = None
 
     # Referências numéricas — todas opcionais: None = "sem override, usa
     # o fallback genérico" de quem consumir isso depois (Fase 2+), nunca

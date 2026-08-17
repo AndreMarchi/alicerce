@@ -36,6 +36,7 @@
       "subsetor": "Transmissão",
       "eh_estatal": false,
       "em_recuperacao_judicial": false,
+      "classe_ativo": "acao",
       "pct_divida_moeda_estrangeira": {
         "valor": 0.0,
         "fonte": "manual",
@@ -77,13 +78,14 @@
           "justificativa": "Transmissora de energia com RAP (Receita Anual Permitida) contratada e payout historicamente próximo de 100% do lucro regulatório — tag NOVA desta fase, sem precedente no valuation-tracker (não existe módulo de DDM lá). Ver CONTEXT.md, Fase 1."
         }
       ],
-      "notas": "Listada como candidata de prioridade não-alta a perfil 'concessao' em valuation-tracker/dados/perfil_dcf.json::_candidatos_auditados_pendentes, mas nunca parametrizada lá. A tag DDM_ONLY aqui é uma decisão independente disso, não uma migração. eh_estatal=false (pesquisado em 17/08/2026, ri.taesa.com.br/estrutura-societaria-pitiguari): controle é COMPARTILHADO entre CEMIG (estatal mineira, 36,97% do capital votante) e ISA Brasil (privada, 26,03% do capital votante) via acordo de acionistas, 63% de participação votante conjunta — nenhuma das duas partes tem maioria isolada, e o mercado descreve a TAESA como empresa de controle privado/misto, não estatal. Ver CONTEXT.md, 'TAEE3 — dados reais para DDM+CAPM', pela decisão completa. em_recuperacao_judicial=false (pesquisado em 17/08/2026): nenhum indício de recuperação judicial — RI/notícias mostram operação normal, resultados trimestrais e distribuição de proventos regulares em 2026."
+      "notas": "Listada como candidata de prioridade não-alta a perfil 'concessao' em valuation-tracker/dados/perfil_dcf.json::_candidatos_auditados_pendentes, mas nunca parametrizada lá. A tag DDM_ONLY aqui é uma decisão independente disso, não uma migração. eh_estatal=false (pesquisado em 17/08/2026, ri.taesa.com.br/estrutura-societaria-pitiguari): controle é COMPARTILHADO entre CEMIG (estatal mineira, 36,97% do capital votante) e ISA Brasil (privada, 26,03% do capital votante) via acordo de acionistas, 63% de participação votante conjunta — nenhuma das duas partes tem maioria isolada, e o mercado descreve a TAESA como empresa de controle privado/misto, não estatal. Ver CONTEXT.md, 'TAEE3 — dados reais para DDM+CAPM', pela decisão completa. em_recuperacao_judicial=false (pesquisado em 17/08/2026): nenhum indício de recuperação judicial — RI/notícias mostram operação normal, resultados trimestrais e distribuição de proventos regulares em 2026. classe_ativo='acao' (é o TAEE3, ação ordinária da TAESA — NÃO confundir com o TAEE11, a unit ON+PN da mesma empresa, que não está cadastrada no Alicerce ainda; ver `perfis/classe_ativo.py` pela armadilha documentada de não inferir classe de ativo pelo sufixo do ticker)."
     },
 
     "CPLE3": {
       "setor": "Energia Elétrica",
       "subsetor": "Distribuição e Geração",
       "em_recuperacao_judicial": false,
+      "classe_ativo": "acao",
       "tags": [
         {
           "tag": "concessao",
@@ -94,20 +96,21 @@
           "justificativa": "Controle estatal via golden share do Governo do Paraná, mantido mesmo após a privatização de 2023 — confirmado em valuation-tracker/valuation/risco.py::EMPRESAS_CONTROLE_ESTATAL, decisão já tomada e reconfirmada explicitamente pelo usuário no projeto anterior (risco político residual)."
         }
       ],
-      "notas": "pct_divida_moeda_estrangeira não foi investigado no valuation-tracker para este ticker especificamente — deixado ausente (None) em vez de estimado. em_recuperacao_judicial=false (pesquisado em 17/08/2026): sem indício de recuperação judicial — resultados trimestrais, migração ao Novo Mercado e distribuição bilionária de dividendos em 2026, operação financeira saudável."
+      "notas": "pct_divida_moeda_estrangeira não foi investigado no valuation-tracker para este ticker especificamente — deixado ausente (None) em vez de estimado. em_recuperacao_judicial=false (pesquisado em 17/08/2026): sem indício de recuperação judicial — resultados trimestrais, migração ao Novo Mercado e distribuição bilionária de dividendos em 2026, operação financeira saudável. classe_ativo='acao' (ação ordinária, único tipo negociado desde a migração ao Novo Mercado)."
     },
 
     "GEPA4": {
       "setor": "Energia Elétrica",
       "subsetor": "Geração",
       "em_recuperacao_judicial": false,
+      "classe_ativo": "acao",
       "tags": [
         {
           "tag": "concessao",
           "justificativa": "Único ticker já parametrizado como 'concessao' em valuation-tracker/dados/perfil_dcf.json (GEPA4/GEPA3), com CONCESSOES_CONHECIDAS parametrizado em dcf_concessao.py."
         }
       ],
-      "notas": "Achado real do valuation-tracker: BPP e DRE consolidados da GEPA4 (CD_CVM 18368) reportados como ZERADOS na CVM desde 2024 (confirmado linha a linha, ITR e DFP, 2023-2025). Qualquer dado numérico de balanço/DRE futuro pra este ticker deve entrar com confianca='baixa' até essa anomalia ser investigada — não é bug do Alicerce nem do valuation-tracker, é o dado reportado pela própria CVM. em_recuperacao_judicial=false (pesquisado em 17/08/2026, empresa Rio Paranapanema Energia S.A., controlada pela China Three Gorges/CTG): sem indício de recuperação judicial nas comunicações e atas de 2026 encontradas — mas ver a anomalia de BPP/DRE zerados acima antes de tratar qualquer dado numérico desse ticker como confiável por padrão."
+      "notas": "Achado real do valuation-tracker: BPP e DRE consolidados da GEPA4 (CD_CVM 18368) reportados como ZERADOS na CVM desde 2024 (confirmado linha a linha, ITR e DFP, 2023-2025). Qualquer dado numérico de balanço/DRE futuro pra este ticker deve entrar com confianca='baixa' até essa anomalia ser investigada — não é bug do Alicerce nem do valuation-tracker, é o dado reportado pela própria CVM. em_recuperacao_judicial=false (pesquisado em 17/08/2026, empresa Rio Paranapanema Energia S.A., controlada pela China Three Gorges/CTG): sem indício de recuperação judicial nas comunicações e atas de 2026 encontradas — mas ver a anomalia de BPP/DRE zerados acima antes de tratar qualquer dado numérico desse ticker como confiável por padrão. classe_ativo='acao' (é o GEPA4, ação preferencial — o par ordinário é GEPA3; nenhuma unit/fundo envolvido)."
     },
 
     "ITSA4": {
@@ -115,19 +118,21 @@
       "subsetor": "Participações Diversificadas",
       "taxonomia_financeira_especial": true,
       "em_recuperacao_judicial": false,
+      "classe_ativo": "acao",
       "tags": [
         {
           "tag": "sotp_obrigatorio",
           "justificativa": "Holding pura de participações (Itaú Unibanco, Dexco, Alpargatas, Motiva, Aegea, Copa Energia e mais 1) — maior ativo é participação num banco, então EV/EBITDA ou DCF consolidado não são conceitos limpos (mesma razão pela qual são inválidos pra bancos). Confirmado em valuation-tracker/dados/sotp_config.json::ITSA4, método 'valor_participacao' usado nos 7 segmentos."
         }
       ],
-      "notas": "'Holding' é uma classificação atribuída pelo motor de perfis do Alicerce, não uma string de setor canônica confirmada em nenhum provedor investigado — o valuation-tracker nunca teve entrada de setor específica pra ITSA4 em PERFIS_SETOR (só o override de segmentos em sotp_config.json). Sem beta/EV-EBITDA/fator NOPAT de referência confirmados para holdings puras — deixados ausentes (None) em vez de estimados. em_recuperacao_judicial=false (pesquisado em 17/08/2026): empresa financeiramente sólida, lucro recorde no 1S26, rating AAA reafirmado pela S&P em maio/2026 — sem qualquer indício de recuperação judicial."
+      "notas": "'Holding' é uma classificação atribuída pelo motor de perfis do Alicerce, não uma string de setor canônica confirmada em nenhum provedor investigado — o valuation-tracker nunca teve entrada de setor específica pra ITSA4 em PERFIS_SETOR (só o override de segmentos em sotp_config.json). Sem beta/EV-EBITDA/fator NOPAT de referência confirmados para holdings puras — deixados ausentes (None) em vez de estimados. em_recuperacao_judicial=false (pesquisado em 17/08/2026): empresa financeiramente sólida, lucro recorde no 1S26, rating AAA reafirmado pela S&P em maio/2026 — sem qualquer indício de recuperação judicial. classe_ativo='acao' (é o ITSA4, ação preferencial; holding de participações, mas ainda uma empresa real com ação negociada — não um fundo)."
     },
 
     "BEEF3": {
       "setor": "Alimentos",
       "eh_ciclico": true,
       "em_recuperacao_judicial": false,
+      "classe_ativo": "acao",
       "beta_referencia": {
         "valor": 0.90,
         "fonte": "manual",
@@ -176,7 +181,7 @@
           "justificativa": "90% da dívida bruta em moeda estrangeira (dado real, confirmado via CVM no valuation-tracker) — maior exposição cambial de dívida já documentada entre os tickers investigados."
         }
       ],
-      "notas": "Setor bruto reportado pelo provedor é 'Alimentos Processados', normalizado para 'Alimentos' (mesmo racional de valuation-tracker/dados/normalizacao_setor.py — mesma economia de negócio, mesma calibração). em_recuperacao_judicial=false (pesquisado em 17/08/2026): resultado positivo no 2T26 (lucro em queda, mas positivo), captação de dívida nova no mercado internacional (2036, 7,625% a.a.) — alavancada, mas sem indício de recuperação judicial. Revisar se a alavancagem elevada (já documentada via pct_divida_moeda_estrangeira acima) evoluir pra estresse de crédito real numa sessão futura."
+      "notas": "Setor bruto reportado pelo provedor é 'Alimentos Processados', normalizado para 'Alimentos' (mesmo racional de valuation-tracker/dados/normalizacao_setor.py — mesma economia de negócio, mesma calibração). em_recuperacao_judicial=false (pesquisado em 17/08/2026): resultado positivo no 2T26 (lucro em queda, mas positivo), captação de dívida nova no mercado internacional (2036, 7,625% a.a.) — alavancada, mas sem indício de recuperação judicial. Revisar se a alavancagem elevada (já documentada via pct_divida_moeda_estrangeira acima) evoluir pra estresse de crédito real numa sessão futura. classe_ativo='acao' (ação ordinária)."
     },
 
     "WIZC3": {
@@ -184,6 +189,7 @@
       "eh_regulado": true,
       "taxonomia_financeira_especial": true,
       "em_recuperacao_judicial": false,
+      "classe_ativo": "acao",
       "beta_referencia": {
         "valor": 0.85,
         "fonte": "manual",
@@ -206,7 +212,7 @@
         "motivo_override": "Migrado de valuation-tracker/valuation/perfil_setor.py::PERFIS_SETOR['Previdência e Seguros'].fator_conversao_nopat=0.0 — NOPAT->FCL não se aplica a seguradoras (mesma razão de bancos). Ver CONTEXT.md, Fase 1."
       },
       "tags": [],
-      "notas": "Caso deliberado de 'perfil completo, zero tags especiais' (ver CONTEXT.md, Fase 1) — exercita a diferença entre ticker desconhecido (TickerSemPerfilError) e ticker sem situação econômica especial (frozenset() vazio, válido). em_recuperacao_judicial=false (pesquisado em 17/08/2026): lucro ajustado em alta e redução de 46,1% na dívida líquida no 1T26, sem indício de recuperação judicial."
+      "notas": "Caso deliberado de 'perfil completo, zero tags especiais' (ver CONTEXT.md, Fase 1) — exercita a diferença entre ticker desconhecido (TickerSemPerfilError) e ticker sem situação econômica especial (frozenset() vazio, válido). em_recuperacao_judicial=false (pesquisado em 17/08/2026): lucro ajustado em alta e redução de 46,1% na dívida líquida no 1T26, sem indício de recuperação judicial. classe_ativo='acao' (ação ordinária)."
     }
   }
 }
