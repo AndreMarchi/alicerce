@@ -5,6 +5,10 @@ com Claude Code). Segue o padrão "investigate before implement": antes de
 qualquer mudança estrutural, entender o estado atual e o *porquê* das
 decisões passadas — não só o *o quê*.
 
+Pra retomada rápida (poucos minutos, não leitura completa), ver
+`docs/resumo_sessao_2026-08-17.md` — resumo de alto nível da sessão mais
+recente, não substitui este arquivo.
+
 ## O que é este projeto
 
 Sucessor do `valuation-tracker`, motivado pela dificuldade em manter um
